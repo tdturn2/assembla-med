@@ -6,7 +6,7 @@ useHead({
 })
 
 useSeoMeta({
-  title: 'Assembla Med',
+  title: 'Assembla Med Home',
   description: 'Congress KOL engagement console'
 })
 </script>
