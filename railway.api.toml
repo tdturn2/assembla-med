@@ -1,0 +1,11 @@
+# API service → Settings → Config-as-code → Railway Config File: railway.api.toml
+# Forces Dockerfile builds; leave Custom Build/Start empty in the UI.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.api"
+
+[deploy]
+healthcheckPath = "/api/health"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

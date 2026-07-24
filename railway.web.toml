@@ -1,0 +1,11 @@
+# Web service → Settings → Config-as-code → Railway Config File: railway.web.toml
+# startCommand here overrides stale UI Custom Start (nuxt preview --host bug).
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.web"
+
+[deploy]
+startCommand = "node .output/server/index.mjs"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
