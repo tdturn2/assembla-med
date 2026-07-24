@@ -1,18 +1,23 @@
-# Assembla Med API — build from repo root (Railway Dockerfile builder)
-# Context: repository root. Settings → Dockerfile path: Dockerfile.api
+# Assembla Med API — same as Dockerfile.api (Railway default name fallback)
+# Context: repository root.
 
 FROM node:22-bookworm-slim AS base
 WORKDIR /app
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable && corepack prepare pnpm@11.13.1 --activate
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/* \
+  && corepack enable && corepack prepare pnpm@11.13.1 --activate
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
-RUN pnpm install --frozen-lockfile
+COPY apps/api/prisma apps/api/prisma/
+RUN pnpm install --frozen-lockfile --ignore-scripts \
+  && pnpm --filter @assembla-med/api exec prisma generate
 
 FROM deps AS build
 COPY . .
