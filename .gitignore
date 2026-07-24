@@ -35,4 +35,7 @@ backups/
 *.dump
 *.sql
 !apps/api/prisma/migrations/**/*.sql
-storage/
+
+# Runtime signature/object storage (do NOT ignore apps/api/src/storage)
+/storage/
+apps/api/storage/
