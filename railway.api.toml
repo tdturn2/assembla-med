@@ -1,11 +1,11 @@
-# Railway — Assembla Med API
-# Service settings: Root Directory = repo root (monorepo)
+# Point API service → Settings → Config-as-code → Railway Config File: railway.api.toml
+# This forces Dockerfile builds (ignore Nixpacks/Railpack custom build field).
 
 [build]
-builder = "NIXPACKS"
-buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @assembla-med/shared build && pnpm --filter @assembla-med/api exec prisma generate && pnpm --filter @assembla-med/api build"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.api"
 
 [deploy]
-startCommand = "pnpm --filter @assembla-med/api exec prisma migrate deploy && pnpm --filter @assembla-med/api start:prod"
+healthcheckPath = "/api/health"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
