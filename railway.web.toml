@@ -1,0 +1,12 @@
+# Railway — Assembla Med Web (Nuxt SPA)
+# Service settings: Root Directory = repo root (monorepo)
+# Set NUXT_PUBLIC_API_BASE to the public API URL ending in /api
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "pnpm install --frozen-lockfile && pnpm --filter @assembla-med/shared build && pnpm --filter @assembla-med/web build"
+
+[deploy]
+startCommand = "pnpm --filter @assembla-med/web exec nuxt preview --host 0.0.0.0 --port $PORT"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

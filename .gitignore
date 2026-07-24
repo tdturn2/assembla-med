@@ -1,0 +1,38 @@
+# Nuxt / Node
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+build
+coverage
+
+# Build outputs
+apps/api/dist
+packages/shared/dist
+
+# Node dependencies
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+*.tsbuildinfo
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Database dumps
+backups/
+*.dump
+*.sql
+!apps/api/prisma/migrations/**/*.sql
+storage/

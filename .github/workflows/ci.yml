@@ -1,0 +1,73 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: assembla_med
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d assembla_med"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/assembla_med?schema=public
+      COOKIE_SECURE: 'false'
+      CORS_ORIGIN: http://localhost:3018
+      MAILGUN_DRY_RUN: 'true'
+      MAILGUN_TEST_TO: tdturn2@gmail.com
+      PUBLIC_WEB_URL: http://localhost:3018
+      PUBLIC_API_URL: http://localhost:4000/api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Install node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build shared
+        run: pnpm --filter @assembla-med/shared build
+
+      - name: Prisma migrate
+        run: pnpm --filter @assembla-med/api exec prisma migrate deploy
+
+      - name: Prisma generate
+        run: pnpm --filter @assembla-med/api exec prisma generate
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Unit tests
+        run: pnpm --filter @assembla-med/api test
+
+      - name: E2E tests
+        run: pnpm --filter @assembla-med/api test:e2e
+
+      - name: Build API
+        run: pnpm --filter @assembla-med/api build

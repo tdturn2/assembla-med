@@ -1,0 +1,418 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SubscriptionTier {
+  core
+  core_plus
+}
+
+enum MembershipRole {
+  org_admin
+  rep
+  viewer
+}
+
+enum CongressStatus {
+  planning
+  active
+  completed
+}
+
+enum AppointmentStatus {
+  pending
+  confirmed
+  cancelled
+  completed
+}
+
+enum EngagementType {
+  meeting
+  advisory_board
+  contracted_talk
+  informal
+  other
+}
+
+enum AttendeeKind {
+  kol
+  staff
+  external
+}
+
+enum AttendeeRsvpStatus {
+  pending
+  invited
+  accepted
+  declined
+  attending
+}
+
+enum SignatureStatus {
+  not_required
+  pending
+  signed
+}
+
+enum CampaignStatus {
+  draft
+  sending
+  sent
+  completed
+}
+
+enum InvitationStatus {
+  pending
+  sent
+  failed
+  opened
+  responded
+  declined
+}
+
+enum IntegrationDestination {
+  mock
+  cvent
+}
+
+enum IntegrationPushStatus {
+  pending
+  pushed
+  failed
+  skipped
+}
+
+model User {
+  id                 String        @id @default(cuid())
+  email              String        @unique
+  passwordHash       String        @map("password_hash")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+  memberships        Membership[]
+  auditEvents        AuditEvent[]
+  sessions           Session[]
+  createdAppointments Appointment[] @relation("AppointmentCreator")
+  checkInsPerformed  CheckIn[]     @relation("CheckInStaff")
+  campaignsCreated   OutreachCampaign[] @relation("CampaignCreator")
+  appointmentAttendances AppointmentAttendee[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Organization {
+  id               String           @id @default(cuid())
+  name             String
+  subscriptionTier SubscriptionTier @default(core) @map("subscription_tier")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  memberships      Membership[]
+  auditEvents      AuditEvent[]
+  congresses       Congress[]
+  kols             Kol[]
+  appointments     Appointment[]
+  checkIns         CheckIn[]
+  invitationTemplates InvitationTemplate[]
+  campaigns        OutreachCampaign[]
+  invitations      Invitation[]
+  appointmentAttendees AppointmentAttendee[]
+  congressGuides   CongressGuide[]
+  mockIntegrationRecords MockIntegrationRecord[]
+
+  @@map("organizations")
+}
+
+model Membership {
+  id             String         @id @default(cuid())
+  userId         String         @map("user_id")
+  organizationId String         @map("organization_id")
+  role           MembershipRole @default(rep)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@map("memberships")
+}
+
+model AuditEvent {
+  id             String        @id @default(cuid())
+  userId         String?       @map("user_id")
+  organizationId String?       @map("organization_id")
+  action         String
+  entityType     String?       @map("entity_type")
+  entityId       String?       @map("entity_id")
+  ipAddress      String?       @map("ip_address")
+  metadata       Json?
+  createdAt      DateTime      @default(now()) @map("created_at")
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+  @@map("audit_events")
+}
+
+model Congress {
+  id             String         @id @default(cuid())
+  organizationId String         @map("organization_id")
+  name           String
+  startDate      DateTime?      @map("start_date") @db.Date
+  endDate        DateTime?      @map("end_date") @db.Date
+  location       String?
+  status         CongressStatus @default(planning)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  appointments   Appointment[]
+  campaigns      OutreachCampaign[]
+  guide          CongressGuide?
+
+  @@index([organizationId, status])
+  @@map("congresses")
+}
+
+model CongressGuide {
+  id                 String       @id @default(cuid())
+  organizationId     String       @map("organization_id")
+  congressId         String       @unique @map("congress_id")
+  agendaMarkdown     String?      @map("agenda_markdown")
+  floorPlanUrl       String?      @map("floor_plan_url")
+  boothNotes         String?      @map("booth_notes")
+  logisticsMarkdown  String?      @map("logistics_markdown")
+  contactsMarkdown   String?      @map("contacts_markdown")
+  lodgingMarkdown    String?      @map("lodging_markdown")
+  safetyMarkdown     String?      @map("safety_markdown")
+  disclosuresMarkdown String?     @map("disclosures_markdown")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  congress           Congress     @relation(fields: [congressId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("congress_guides")
+}
+
+model Kol {
+  id              String         @id @default(cuid())
+  organizationId  String         @map("organization_id")
+  name            String
+  email           String?
+  institution     String?
+  therapeuticArea String?        @map("therapeutic_area")
+  region          String?
+  notes           String?
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]
+  invitations     Invitation[]
+  appointmentAttendances AppointmentAttendee[]
+
+  @@index([organizationId, name])
+  @@index([organizationId, email])
+  @@map("kols")
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  organizationId  String            @map("organization_id")
+  congressId      String            @map("congress_id")
+  kolId           String?           @map("kol_id")
+  createdById     String?           @map("created_by_id")
+  title           String
+  location        String?
+  startTime       DateTime          @map("start_time")
+  endTime         DateTime          @map("end_time")
+  status          AppointmentStatus @default(confirmed)
+  engagementType  EngagementType    @default(meeting) @map("engagement_type")
+  isContracted    Boolean           @default(false) @map("is_contracted")
+  contractNotes   String?           @map("contract_notes")
+  notes           String?
+  checkInCode     String            @unique @map("check_in_code")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  congress        Congress          @relation(fields: [congressId], references: [id], onDelete: Cascade)
+  kol             Kol?              @relation(fields: [kolId], references: [id], onDelete: SetNull)
+  createdBy       User?             @relation("AppointmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  checkIns        CheckIn[]
+  invitations     Invitation[]
+  attendees       AppointmentAttendee[]
+
+  @@index([organizationId, startTime])
+  @@index([congressId, startTime])
+  @@index([kolId, startTime])
+  @@index([createdById, startTime])
+  @@map("appointments")
+}
+
+model AppointmentAttendee {
+  id             String            @id @default(cuid())
+  organizationId String            @map("organization_id")
+  appointmentId  String            @map("appointment_id")
+  kind           AttendeeKind      @default(kol)
+  kolId          String?           @map("kol_id")
+  userId         String?           @map("user_id")
+  name           String
+  email          String?
+  rsvpStatus     AttendeeRsvpStatus @default(pending) @map("rsvp_status")
+  isPrimary      Boolean           @default(false) @map("is_primary")
+  notes          String?
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  appointment    Appointment       @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  kol            Kol?              @relation(fields: [kolId], references: [id], onDelete: SetNull)
+  user           User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([appointmentId])
+  @@index([organizationId, appointmentId])
+  @@index([kolId])
+  @@map("appointment_attendees")
+}
+
+model CheckIn {
+  id                 String          @id @default(cuid())
+  organizationId     String          @map("organization_id")
+  appointmentId      String          @map("appointment_id")
+  checkedInById      String?         @map("checked_in_by_id")
+  attendeeName       String?         @map("attendee_name")
+  attendeeEmail      String?         @map("attendee_email")
+  checkedInAt        DateTime        @default(now()) @map("checked_in_at")
+  notes              String?
+  tovAmount          Decimal?        @map("tov_amount") @db.Decimal(10, 2)
+  tovType            String?         @map("tov_type")
+  tovCurrency        String?         @default("USD") @map("tov_currency")
+  signatureStatus    SignatureStatus @default(not_required) @map("signature_status")
+  signatureKey       String?         @map("signature_key")
+  signatureSignedAt  DateTime?       @map("signature_signed_at")
+  voidedAt           DateTime?       @map("voided_at")
+  voidReason         String?         @map("void_reason")
+  replacesCheckInId  String?         @map("replaces_check_in_id")
+  integrationStatus       IntegrationPushStatus @default(pending) @map("integration_status")
+  integrationDestination  IntegrationDestination @default(mock) @map("integration_destination")
+  integrationExternalId   String?     @map("integration_external_id")
+  integrationLastError    String?     @map("integration_last_error")
+  integrationIdempotencyKey String?   @map("integration_idempotency_key")
+  integrationAttemptCount Int         @default(0) @map("integration_attempt_count")
+  integrationPushedAt     DateTime?   @map("integration_pushed_at")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  appointment        Appointment     @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  checkedInBy        User?           @relation("CheckInStaff", fields: [checkedInById], references: [id], onDelete: SetNull)
+  replacesCheckIn    CheckIn?        @relation("CheckInCorrections", fields: [replacesCheckInId], references: [id], onDelete: SetNull)
+  corrections        CheckIn[]       @relation("CheckInCorrections")
+
+  @@index([organizationId, checkedInAt])
+  @@index([appointmentId, checkedInAt])
+  @@index([organizationId, integrationStatus])
+  @@map("check_ins")
+}
+
+/// Simulated CRM/CVENT destination for pre-contract demos (idempotency store).
+model MockIntegrationRecord {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  idempotencyKey String   @map("idempotency_key")
+  checkInId      String   @map("check_in_id")
+  payloadJson    Json     @map("payload_json")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([checkInId])
+  @@map("mock_integration_records")
+}
+
+model InvitationTemplate {
+  id             String             @id @default(cuid())
+  organizationId String             @map("organization_id")
+  name           String
+  subject        String
+  bodyHtml       String             @map("body_html")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaigns      OutreachCampaign[]
+
+  @@index([organizationId, name])
+  @@map("invitation_templates")
+}
+
+model OutreachCampaign {
+  id             String         @id @default(cuid())
+  organizationId String         @map("organization_id")
+  congressId     String?        @map("congress_id")
+  templateId     String         @map("template_id")
+  createdById    String?        @map("created_by_id")
+  name           String
+  status         CampaignStatus @default(draft)
+  engagementType EngagementType @default(meeting) @map("engagement_type")
+  isContracted   Boolean        @default(false) @map("is_contracted")
+  sentAt         DateTime?      @map("sent_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  congress       Congress?      @relation(fields: [congressId], references: [id], onDelete: SetNull)
+  template       InvitationTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  createdBy      User?          @relation("CampaignCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  invitations    Invitation[]
+
+  @@index([organizationId, status])
+  @@map("outreach_campaigns")
+}
+
+model Invitation {
+  id                String           @id @default(cuid())
+  organizationId    String           @map("organization_id")
+  campaignId        String           @map("campaign_id")
+  kolId             String           @map("kol_id")
+  appointmentId     String?          @map("appointment_id")
+  toEmail           String           @map("to_email")
+  toName            String           @map("to_name")
+  subject           String
+  bodyHtml          String           @map("body_html")
+  status            InvitationStatus @default(pending)
+  engagementType    EngagementType   @default(meeting) @map("engagement_type")
+  isContracted      Boolean          @default(false) @map("is_contracted")
+  responseToken     String           @unique @map("response_token")
+  providerMessageId String?          @map("provider_message_id")
+  errorMessage      String?          @map("error_message")
+  sentAt            DateTime?        @map("sent_at")
+  openedAt          DateTime?        @map("opened_at")
+  respondedAt       DateTime?        @map("responded_at")
+  responseText      String?          @map("response_text")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  organization      Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign          OutreachCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  kol               Kol              @relation(fields: [kolId], references: [id], onDelete: Cascade)
+  appointment       Appointment?     @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([campaignId, status])
+  @@index([kolId])
+  @@map("invitations")
+}

@@ -1,0 +1,23 @@
+{
+  "name": "assembla-med",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @assembla-med/web --filter @assembla-med/api dev",
+    "dev:web": "pnpm --filter @assembla-med/web dev",
+    "dev:api": "pnpm --filter @assembla-med/api dev",
+    "build": "pnpm --filter @assembla-med/shared build && pnpm run -r --filter=!@assembla-med/shared build",
+    "build:web": "pnpm --filter @assembla-med/web build",
+    "build:api": "pnpm --filter @assembla-med/shared build && pnpm --filter @assembla-med/api build",
+    "lint": "pnpm run -r lint",
+    "typecheck": "pnpm --filter @assembla-med/shared build && pnpm run -r typecheck",
+    "test": "pnpm run -r --if-present test",
+    "db:backup": "./scripts/db-backup.sh",
+    "db:restore": "./scripts/db-restore.sh",
+    "db:restore-drill": "./scripts/db-restore-drill.sh"
+  },
+  "packageManager": "pnpm@11.13.1",
+  "engines": {
+    "node": ">=22"
+  }
+}
