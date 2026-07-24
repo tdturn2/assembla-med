@@ -1,5 +1,6 @@
 # Assembla Med Web — build from repo root
 # Settings → Dockerfile path: Dockerfile.web
+# Clear Custom Start Command in Railway (use this CMD only).
 
 FROM node:22-bookworm-slim AS base
 WORKDIR /app
@@ -19,11 +20,15 @@ ARG NUXT_PUBLIC_API_BASE=http://localhost:4000/api
 ENV NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE
 COPY . .
 RUN pnpm --filter @assembla-med/shared build \
-  && pnpm --filter @assembla-med/web build
+  && pnpm --filter @assembla-med/web build \
+  && test -f apps/web/.output/server/index.mjs
 
 FROM base AS runner
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
+ENV NITRO_HOST=0.0.0.0
+WORKDIR /app/apps/web
 COPY --from=build /app /app
 EXPOSE 8080
-CMD ["sh", "-c", "pnpm --filter @assembla-med/web exec nuxt preview --host 0.0.0.0 --port ${PORT:-8080}"]
+# Do NOT pass --host 0.0.0.0 — Nuxt treats it as a rootDir path.
+CMD ["sh", "-c", "node .output/server/index.mjs"]

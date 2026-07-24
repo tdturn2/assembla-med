@@ -68,8 +68,13 @@ Do **not** set a Custom Build Command that runs `pnpm install` again — that do
 |---|---|
 | Builder | **Dockerfile** |
 | Dockerfile path | `Dockerfile.web` |
+| Custom start | **empty** (Dockerfile starts Nitro via `node .output/server/index.mjs`) |
 | Build arg / variable | `NUXT_PUBLIC_API_BASE=https://<api-host>/api` |
 | Public networking port | `8080` |
+
+API and web are **independent** services. Do not set a deploy dependency from API → web. Fix web start; API can deploy in parallel.
+
+**Do not** use `nuxt preview --host 0.0.0.0` — Nuxt treats `0.0.0.0` as a directory and looks for `.output` under `/app/apps/web/0.0.0.0/`.
 
 ### Before you wait on Railway
 

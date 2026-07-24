@@ -6,6 +6,7 @@
     "build": "nuxt build",
     "dev": "nuxt dev --port 3018",
     "preview": "nuxt preview",
+    "start:prod": "node .output/server/index.mjs",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "typecheck": "nuxt typecheck"
