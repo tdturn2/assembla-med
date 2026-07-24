@@ -44,14 +44,42 @@ pnpm db:restore-drill
 
 Dumps land in `backups/` as custom-format `.dump` files (gitignored). Scripts prefer `/opt/homebrew/bin` clients so Herd’s older `psql` does not break restores. Keep at least one successful restore drill on record before treating staging as ready.
 
-## Staging deploy checklist (repeatable)
+## Railway (demo / staging)
 
-1. `pnpm install`
-2. `pnpm --filter @assembla-med/shared build`
-3. `pnpm --filter @assembla-med/api exec prisma migrate deploy`
-4. `pnpm build`
-5. Start API with staging env (`COOKIE_SECURE=true`, staging `CORS_ORIGIN`, Neon `DATABASE_URL`)
-6. Smoke: register → create org → `/api/auth/me` → health
+One GitHub repo → **two services**. Prefer **Dockerfile** builder (predictable; one `pnpm install`).
+
+### API service
+
+| Setting | Value |
+|---|---|
+| Builder | **Dockerfile** |
+| Dockerfile path | `Dockerfile.api` |
+| Custom build / start | leave empty (Dockerfile `CMD` handles migrate + start) |
+| Public networking port | `8080` |
+| Healthcheck | `/api/health` |
+
+Variables: `DATABASE_URL` (Neon assembla-med project), `COOKIE_SECURE=true`, `CORS_ORIGIN=<web url>`, `MAILGUN_DRY_RUN=true`, optional Mailgun keys.
+
+Do **not** set a Custom Build Command that runs `pnpm install` again — that doubles install time.
+
+### Web service
+
+| Setting | Value |
+|---|---|
+| Builder | **Dockerfile** |
+| Dockerfile path | `Dockerfile.web` |
+| Build arg / variable | `NUXT_PUBLIC_API_BASE=https://<api-host>/api` |
+| Public networking port | `8080` |
+
+### Before you wait on Railway
+
+```bash
+pnpm run build:api   # ~seconds locally; if this fails, Railway will fail
+```
+
+### Neon
+
+Use a dedicated **assembla-med** Neon project/DB — never the spa/ops database.
 
 ## Neon point-in-time recovery
 
