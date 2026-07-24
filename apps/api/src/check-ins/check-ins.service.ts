@@ -10,7 +10,7 @@ import { AppointmentsService } from '../appointments/appointments.service';
 import { escapeCsv } from '../common/utils';
 import { IntegrationPushService } from '../integrations/integration-push.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { StorageService } from '../storage/storage.service';
+import { StorageService } from '../file-store/storage.service';
 
 @Injectable()
 export class CheckInsService {

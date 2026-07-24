@@ -12,7 +12,7 @@ import { MailModule } from './mail/mail.module';
 import { OrgsModule } from './orgs/orgs.module';
 import { OutreachModule } from './outreach/outreach.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { StorageModule } from './storage/storage.module';
+import { StorageModule } from './file-store/storage.module';
 
 @Module({
   imports: [

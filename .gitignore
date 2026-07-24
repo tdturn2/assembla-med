@@ -36,6 +36,6 @@ backups/
 *.sql
 !apps/api/prisma/migrations/**/*.sql
 
-# Runtime signature/object storage (do NOT ignore apps/api/src/storage)
+# Runtime signature/object storage data dirs (source lives in apps/api/src/file-store)
 /storage/
 apps/api/storage/
