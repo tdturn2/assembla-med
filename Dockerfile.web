@@ -22,7 +22,8 @@ RUN pnpm install --frozen-lockfile --ignore-scripts \
   && pnpm --filter @assembla-med/api exec prisma generate
 
 FROM deps AS build
-ARG NUXT_PUBLIC_API_BASE=http://localhost:4000/api
+# Same-origin /api (Nitro proxies to Nest). Do not bake a cross-origin API URL.
+ARG NUXT_PUBLIC_API_BASE=/api
 ENV NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE
 COPY . .
 RUN pnpm --filter @assembla-med/shared build \

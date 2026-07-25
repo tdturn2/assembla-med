@@ -71,11 +71,16 @@ export class SessionService {
 
   cookieOptions() {
     const secure = process.env.COOKIE_SECURE === 'true';
-    // Cross-origin Console (separate Railway web host) needs SameSite=None + Secure.
+    // Prefer Lax: Console proxies /api through the web host (first-party cookie).
+    // SameSite=None only if COOKIE_SAMESITE=none (legacy cross-origin API host).
+    const sameSite =
+      process.env.COOKIE_SAMESITE === 'none'
+        ? ('none' as const)
+        : ('lax' as const);
     return {
       httpOnly: true,
-      sameSite: (secure ? 'none' : 'lax') as 'none' | 'lax',
-      secure,
+      sameSite,
+      secure: sameSite === 'none' ? true : secure,
       path: '/',
       maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000,
     };

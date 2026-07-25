@@ -69,8 +69,11 @@ Do **not** set a Custom Build Command that runs `pnpm install` again — that do
 | Builder | **Dockerfile** |
 | Dockerfile path | `Dockerfile.web` |
 | Custom start | **empty** (Dockerfile starts Nitro via `node .output/server/index.mjs`) |
-| Build arg / variable | `NUXT_PUBLIC_API_BASE=https://<api-host>/api` |
+| `NUXT_PUBLIC_API_BASE` | `/api` (same-origin; required for Safari / mobile auth) |
+| `NUXT_API_PROXY_TARGET` | Nest origin, e.g. `http://assembla-med-api.railway.internal:8080` or the public API URL |
 | Public networking port | `8080` |
+
+Browser calls go to `https://<web>/api/...`. Nitro proxies to Nest so the session cookie is **first-party** on the web host. Do **not** point `NUXT_PUBLIC_API_BASE` at the separate `*.up.railway.app` API host — Safari/iOS will block that cookie.
 
 API and web are **independent** services. Do not set a deploy dependency from API → web. Fix web start; API can deploy in parallel.
 

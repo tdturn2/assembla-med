@@ -66,7 +66,7 @@ export class AuthController {
       req.user?.id,
       this.auth.clientIp(req),
     );
-    res.clearCookie(SESSION_COOKIE, { path: '/' });
+    res.clearCookie(SESSION_COOKIE, this.sessions.cookieOptions());
     return { ok: true };
   }
 
