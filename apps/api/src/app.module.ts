@@ -12,6 +12,7 @@ import { MailModule } from './mail/mail.module';
 import { OrgsModule } from './orgs/orgs.module';
 import { OutreachModule } from './outreach/outreach.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RoomsModule } from './rooms/rooms.module';
 import { StorageModule } from './file-store/storage.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { StorageModule } from './file-store/storage.module';
     CheckInsModule,
     OutreachModule,
     IntegrationsModule,
+    RoomsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

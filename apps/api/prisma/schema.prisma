@@ -29,6 +29,7 @@ enum AppointmentStatus {
   confirmed
   cancelled
   completed
+  no_show
 }
 
 enum EngagementType {
@@ -135,6 +136,7 @@ model Organization {
   appointmentAttendees AppointmentAttendee[]
   congressGuides   CongressGuide[]
   mockIntegrationRecords MockIntegrationRecord[]
+  rooms            Room[]
 
   @@map("organizations")
 }
@@ -173,43 +175,82 @@ model AuditEvent {
 }
 
 model Congress {
-  id             String         @id @default(cuid())
-  organizationId String         @map("organization_id")
-  name           String
-  startDate      DateTime?      @map("start_date") @db.Date
-  endDate        DateTime?      @map("end_date") @db.Date
-  location       String?
-  status         CongressStatus @default(planning)
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  appointments   Appointment[]
-  campaigns      OutreachCampaign[]
-  guide          CongressGuide?
+  id                  String         @id @default(cuid())
+  organizationId      String         @map("organization_id")
+  name                String
+  cventId             String?        @map("cvent_id")
+  companyContactName  String?        @map("company_contact_name")
+  companyContactEmail String?        @map("company_contact_email")
+  websiteUrl          String?        @map("website_url")
+  startDate           DateTime?      @map("start_date") @db.Date
+  endDate             DateTime?      @map("end_date") @db.Date
+  location            String?
+  status              CongressStatus @default(planning)
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+  organization        Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  appointments        Appointment[]
+  campaigns           OutreachCampaign[]
+  guide               CongressGuide?
+  rooms               Room[]
 
   @@index([organizationId, status])
   @@map("congresses")
 }
 
 model CongressGuide {
-  id                 String       @id @default(cuid())
-  organizationId     String       @map("organization_id")
-  congressId         String       @unique @map("congress_id")
-  agendaMarkdown     String?      @map("agenda_markdown")
-  floorPlanUrl       String?      @map("floor_plan_url")
-  boothNotes         String?      @map("booth_notes")
-  logisticsMarkdown  String?      @map("logistics_markdown")
-  contactsMarkdown   String?      @map("contacts_markdown")
-  lodgingMarkdown    String?      @map("lodging_markdown")
-  safetyMarkdown     String?      @map("safety_markdown")
-  disclosuresMarkdown String?     @map("disclosures_markdown")
-  createdAt          DateTime     @default(now()) @map("created_at")
-  updatedAt          DateTime     @updatedAt @map("updated_at")
-  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  congress           Congress     @relation(fields: [congressId], references: [id], onDelete: Cascade)
+  id                      String       @id @default(cuid())
+  organizationId          String       @map("organization_id")
+  congressId              String       @unique @map("congress_id")
+  agendaMarkdown          String?      @map("agenda_markdown")
+  floorPlanUrl            String?      @map("floor_plan_url")
+  boothNotes              String?      @map("booth_notes")
+  boothScheduleMarkdown   String?      @map("booth_schedule_markdown")
+  exhibitHallHoursMarkdown String?     @map("exhibit_hall_hours_markdown")
+  staffDirectoryMarkdown  String?      @map("staff_directory_markdown")
+  logisticsMarkdown       String?      @map("logistics_markdown")
+  contactsMarkdown        String?      @map("contacts_markdown")
+  lodgingMarkdown         String?      @map("lodging_markdown")
+  safetyMarkdown          String?      @map("safety_markdown")
+  disclosuresMarkdown     String?      @map("disclosures_markdown")
+  /// [{ title, url?, description? }] — Lilly-style linked disclosures
+  disclosureItems         Json?        @map("disclosure_items")
+  icwDinnersMarkdown      String?      @map("icw_dinners_markdown")
+  icwReceptionMarkdown    String?      @map("icw_reception_markdown")
+  icwAdBoardsMarkdown     String?      @map("icw_ad_boards_markdown")
+  icwWorkRoomMarkdown     String?      @map("icw_work_room_markdown")
+  icwMeetingRoomsMarkdown String?      @map("icw_meeting_rooms_markdown")
+  createdAt               DateTime     @default(now()) @map("created_at")
+  updatedAt               DateTime     @updatedAt @map("updated_at")
+  organization            Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  congress                Congress     @relation(fields: [congressId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@map("congress_guides")
+}
+
+model Room {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  congressId     String       @map("congress_id")
+  title          String
+  /// Seated capacity
+  sitting        Int?
+  capacity       Int?
+  hasAv          Boolean      @default(false) @map("has_av")
+  avNotes        String?      @map("av_notes")
+  layout         String?
+  supplyList     String?      @map("supply_list")
+  notes          String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  congress       Congress     @relation(fields: [congressId], references: [id], onDelete: Cascade)
+  appointments   Appointment[]
+
+  @@index([organizationId, congressId])
+  @@index([congressId])
+  @@map("rooms")
 }
 
 model Kol {
@@ -237,6 +278,7 @@ model Appointment {
   id              String            @id @default(cuid())
   organizationId  String            @map("organization_id")
   congressId      String            @map("congress_id")
+  roomId          String?           @map("room_id")
   kolId           String?           @map("kol_id")
   createdById     String?           @map("created_by_id")
   title           String
@@ -253,6 +295,7 @@ model Appointment {
   updatedAt       DateTime          @updatedAt @map("updated_at")
   organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   congress        Congress          @relation(fields: [congressId], references: [id], onDelete: Cascade)
+  room            Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
   kol             Kol?              @relation(fields: [kolId], references: [id], onDelete: SetNull)
   createdBy       User?             @relation("AppointmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
   checkIns        CheckIn[]
@@ -261,6 +304,7 @@ model Appointment {
 
   @@index([organizationId, startTime])
   @@index([congressId, startTime])
+  @@index([roomId, startTime])
   @@index([kolId, startTime])
   @@index([createdById, startTime])
   @@map("appointments")

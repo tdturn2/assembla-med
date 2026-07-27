@@ -10,6 +10,7 @@ import type {
   Membership,
   Organization,
   OutreachCampaign,
+  Room,
   User,
 } from '@prisma/client';
 import type {
@@ -19,12 +20,14 @@ import type {
   CheckInPublic,
   CongressGuidePublic,
   CongressPublic,
+  DisclosureItemPublic,
   InvitationPublic,
   InvitationTemplatePublic,
   KolPublic,
   MeResponse,
   MembershipPublic,
   OrganizationPublic,
+  RoomPublic,
   UserPublic,
 } from '@assembla-med/shared';
 
@@ -36,11 +39,38 @@ type AppointmentAttendeeWithRelations = AppointmentAttendee & {
 type AppointmentWithRelations = Appointment & {
   kol?: Kol | null;
   congress?: Congress | null;
+  room?: Room | null;
   attendees?: AppointmentAttendeeWithRelations[];
 };
 type CheckInWithRelations = CheckIn & {
   appointment?: AppointmentWithRelations;
 };
+
+export function toRoomPublic(
+  room: Room & {
+    available?: boolean;
+    conflictingAppointmentId?: string | null;
+  },
+): RoomPublic {
+  return {
+    id: room.id,
+    organizationId: room.organizationId,
+    congressId: room.congressId,
+    title: room.title,
+    sitting: room.sitting,
+    capacity: room.capacity,
+    hasAv: room.hasAv,
+    avNotes: room.avNotes,
+    layout: room.layout,
+    supplyList: room.supplyList,
+    notes: room.notes,
+    createdAt: room.createdAt.toISOString(),
+    ...(room.available !== undefined && { available: room.available }),
+    ...(room.conflictingAppointmentId !== undefined && {
+      conflictingAppointmentId: room.conflictingAppointmentId,
+    }),
+  };
+}
 
 export function toUserPublic(user: User): UserPublic {
   return {
@@ -95,12 +125,31 @@ export function toCongressPublic(congress: Congress): CongressPublic {
     id: congress.id,
     organizationId: congress.organizationId,
     name: congress.name,
+    cventId: congress.cventId,
+    companyContactName: congress.companyContactName,
+    companyContactEmail: congress.companyContactEmail,
+    websiteUrl: congress.websiteUrl,
     startDate: congress.startDate?.toISOString().slice(0, 10) ?? null,
     endDate: congress.endDate?.toISOString().slice(0, 10) ?? null,
     location: congress.location,
     status: congress.status,
     createdAt: congress.createdAt.toISOString(),
   };
+}
+
+function toDisclosureItems(value: unknown): DisclosureItemPublic[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+    .map((item) => ({
+      title: String(item.title ?? '').trim(),
+      url: item.url == null || item.url === '' ? null : String(item.url),
+      description:
+        item.description == null || item.description === ''
+          ? null
+          : String(item.description),
+    }))
+    .filter((item) => item.title.length > 0);
 }
 
 export function toCongressGuidePublic(guide: CongressGuide): CongressGuidePublic {
@@ -111,11 +160,20 @@ export function toCongressGuidePublic(guide: CongressGuide): CongressGuidePublic
     agendaMarkdown: guide.agendaMarkdown,
     floorPlanUrl: guide.floorPlanUrl,
     boothNotes: guide.boothNotes,
+    boothScheduleMarkdown: guide.boothScheduleMarkdown,
+    exhibitHallHoursMarkdown: guide.exhibitHallHoursMarkdown,
+    staffDirectoryMarkdown: guide.staffDirectoryMarkdown,
     logisticsMarkdown: guide.logisticsMarkdown,
     contactsMarkdown: guide.contactsMarkdown,
     lodgingMarkdown: guide.lodgingMarkdown,
     safetyMarkdown: guide.safetyMarkdown,
     disclosuresMarkdown: guide.disclosuresMarkdown,
+    disclosureItems: toDisclosureItems(guide.disclosureItems),
+    icwDinnersMarkdown: guide.icwDinnersMarkdown,
+    icwReceptionMarkdown: guide.icwReceptionMarkdown,
+    icwAdBoardsMarkdown: guide.icwAdBoardsMarkdown,
+    icwWorkRoomMarkdown: guide.icwWorkRoomMarkdown,
+    icwMeetingRoomsMarkdown: guide.icwMeetingRoomsMarkdown,
     createdAt: guide.createdAt.toISOString(),
     updatedAt: guide.updatedAt.toISOString(),
   };
@@ -159,6 +217,7 @@ export function toAppointmentPublic(
     id: appointment.id,
     organizationId: appointment.organizationId,
     congressId: appointment.congressId,
+    roomId: appointment.roomId,
     kolId: appointment.kolId,
     createdById: appointment.createdById,
     title: appointment.title,
@@ -176,6 +235,7 @@ export function toAppointmentPublic(
     congress: appointment.congress
       ? toCongressPublic(appointment.congress)
       : null,
+    room: appointment.room ? toRoomPublic(appointment.room) : null,
     attendees: appointment.attendees?.map(toAppointmentAttendeePublic),
   };
 }

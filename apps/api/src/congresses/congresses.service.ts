@@ -1,7 +1,28 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CongressStatus, Prisma } from '@prisma/client';
+import type { DisclosureItemPublic } from '@assembla-med/shared';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
+
+type GuidePatch = {
+  agendaMarkdown?: string | null;
+  floorPlanUrl?: string | null;
+  boothNotes?: string | null;
+  boothScheduleMarkdown?: string | null;
+  exhibitHallHoursMarkdown?: string | null;
+  staffDirectoryMarkdown?: string | null;
+  logisticsMarkdown?: string | null;
+  contactsMarkdown?: string | null;
+  lodgingMarkdown?: string | null;
+  safetyMarkdown?: string | null;
+  disclosuresMarkdown?: string | null;
+  disclosureItems?: DisclosureItemPublic[] | null;
+  icwDinnersMarkdown?: string | null;
+  icwReceptionMarkdown?: string | null;
+  icwAdBoardsMarkdown?: string | null;
+  icwWorkRoomMarkdown?: string | null;
+  icwMeetingRoomsMarkdown?: string | null;
+};
 
 @Injectable()
 export class CongressesService {
@@ -15,6 +36,10 @@ export class CongressesService {
     userId: string,
     data: {
       name: string;
+      cventId?: string;
+      companyContactName?: string;
+      companyContactEmail?: string;
+      websiteUrl?: string;
       startDate?: string;
       endDate?: string;
       location?: string;
@@ -27,6 +52,10 @@ export class CongressesService {
         data: {
           organizationId,
           name: data.name.trim(),
+          cventId: data.cventId?.trim() || null,
+          companyContactName: data.companyContactName?.trim() || null,
+          companyContactEmail: data.companyContactEmail?.trim() || null,
+          websiteUrl: data.websiteUrl?.trim() || null,
           startDate: data.startDate ? new Date(data.startDate) : null,
           endDate: data.endDate ? new Date(data.endDate) : null,
           location: data.location?.trim() || null,
@@ -71,6 +100,10 @@ export class CongressesService {
     userId: string,
     data: {
       name?: string;
+      cventId?: string | null;
+      companyContactName?: string | null;
+      companyContactEmail?: string | null;
+      websiteUrl?: string | null;
       startDate?: string | null;
       endDate?: string | null;
       location?: string | null;
@@ -82,6 +115,18 @@ export class CongressesService {
 
     const patch: Prisma.CongressUpdateInput = {};
     if (data.name !== undefined) patch.name = data.name.trim();
+    if (data.cventId !== undefined) {
+      patch.cventId = data.cventId?.trim() || null;
+    }
+    if (data.companyContactName !== undefined) {
+      patch.companyContactName = data.companyContactName?.trim() || null;
+    }
+    if (data.companyContactEmail !== undefined) {
+      patch.companyContactEmail = data.companyContactEmail?.trim() || null;
+    }
+    if (data.websiteUrl !== undefined) {
+      patch.websiteUrl = data.websiteUrl?.trim() || null;
+    }
     if (data.location !== undefined) {
       patch.location = data.location?.trim() || null;
     }
@@ -113,7 +158,15 @@ export class CongressesService {
   async summary(organizationId: string, congressId: string) {
     await this.get(organizationId, congressId);
 
-    const [appointments, checkIns, activeCheckIns] = await Promise.all([
+    const [
+      appointments,
+      checkIns,
+      activeCheckIns,
+      byStatus,
+      completed,
+      noShow,
+      cancelled,
+    ] = await Promise.all([
       this.prisma.appointment.count({
         where: { organizationId, congressId, status: { not: 'cancelled' } },
       }),
@@ -127,13 +180,39 @@ export class CongressesService {
           appointment: { congressId },
         },
       }),
+      this.prisma.appointment.groupBy({
+        by: ['status'],
+        where: { organizationId, congressId },
+        _count: { _all: true },
+      }),
+      this.prisma.appointment.count({
+        where: { organizationId, congressId, status: 'completed' },
+      }),
+      this.prisma.appointment.count({
+        where: { organizationId, congressId, status: 'no_show' },
+      }),
+      this.prisma.appointment.count({
+        where: { organizationId, congressId, status: 'cancelled' },
+      }),
     ]);
+
+    const statusCounts = Object.fromEntries(
+      byStatus.map((row) => [row.status, row._count._all]),
+    );
 
     return {
       congressId,
       appointments,
       checkIns,
       activeCheckIns,
+      completed,
+      noShow,
+      cancelled,
+      statusCounts,
+      attendanceRate:
+        appointments > 0
+          ? Math.round((activeCheckIns / appointments) * 100)
+          : null,
     };
   }
 
@@ -154,16 +233,7 @@ export class CongressesService {
     organizationId: string,
     congressId: string,
     userId: string,
-    data: {
-      agendaMarkdown?: string | null;
-      floorPlanUrl?: string | null;
-      boothNotes?: string | null;
-      logisticsMarkdown?: string | null;
-      contactsMarkdown?: string | null;
-      lodgingMarkdown?: string | null;
-      safetyMarkdown?: string | null;
-      disclosuresMarkdown?: string | null;
-    },
+    data: GuidePatch,
     ipAddress?: string,
   ) {
     await this.get(organizationId, congressId);
@@ -175,46 +245,61 @@ export class CongressesService {
       return trimmed.length ? trimmed : null;
     };
 
+    const normalizeItems = (items?: DisclosureItemPublic[] | null) => {
+      if (items === undefined) return undefined;
+      if (items === null) return [];
+      return items
+        .map((item) => ({
+          title: item.title.trim(),
+          url: item.url?.trim() || null,
+          description: item.description?.trim() || null,
+        }))
+        .filter((item) => item.title.length > 0);
+    };
+
+    const stringFields = [
+      'agendaMarkdown',
+      'floorPlanUrl',
+      'boothNotes',
+      'boothScheduleMarkdown',
+      'exhibitHallHoursMarkdown',
+      'staffDirectoryMarkdown',
+      'logisticsMarkdown',
+      'contactsMarkdown',
+      'lodgingMarkdown',
+      'safetyMarkdown',
+      'disclosuresMarkdown',
+      'icwDinnersMarkdown',
+      'icwReceptionMarkdown',
+      'icwAdBoardsMarkdown',
+      'icwWorkRoomMarkdown',
+      'icwMeetingRoomsMarkdown',
+    ] as const;
+
+    const createData: Prisma.CongressGuideCreateInput = {
+      organization: { connect: { id: organizationId } },
+      congress: { connect: { id: congressId } },
+    };
+    const updateData: Prisma.CongressGuideUpdateInput = {};
+
+    for (const field of stringFields) {
+      if (data[field] !== undefined) {
+        const value = normalize(data[field]);
+        createData[field] = value ?? null;
+        updateData[field] = value;
+      }
+    }
+
+    if (data.disclosureItems !== undefined) {
+      const items = normalizeItems(data.disclosureItems) ?? [];
+      createData.disclosureItems = items;
+      updateData.disclosureItems = items;
+    }
+
     const guide = await this.prisma.congressGuide.upsert({
       where: { congressId },
-      create: {
-        organizationId,
-        congressId,
-        agendaMarkdown: normalize(data.agendaMarkdown) ?? null,
-        floorPlanUrl: normalize(data.floorPlanUrl) ?? null,
-        boothNotes: normalize(data.boothNotes) ?? null,
-        logisticsMarkdown: normalize(data.logisticsMarkdown) ?? null,
-        contactsMarkdown: normalize(data.contactsMarkdown) ?? null,
-        lodgingMarkdown: normalize(data.lodgingMarkdown) ?? null,
-        safetyMarkdown: normalize(data.safetyMarkdown) ?? null,
-        disclosuresMarkdown: normalize(data.disclosuresMarkdown) ?? null,
-      },
-      update: {
-        ...(data.agendaMarkdown !== undefined && {
-          agendaMarkdown: normalize(data.agendaMarkdown),
-        }),
-        ...(data.floorPlanUrl !== undefined && {
-          floorPlanUrl: normalize(data.floorPlanUrl),
-        }),
-        ...(data.boothNotes !== undefined && {
-          boothNotes: normalize(data.boothNotes),
-        }),
-        ...(data.logisticsMarkdown !== undefined && {
-          logisticsMarkdown: normalize(data.logisticsMarkdown),
-        }),
-        ...(data.contactsMarkdown !== undefined && {
-          contactsMarkdown: normalize(data.contactsMarkdown),
-        }),
-        ...(data.lodgingMarkdown !== undefined && {
-          lodgingMarkdown: normalize(data.lodgingMarkdown),
-        }),
-        ...(data.safetyMarkdown !== undefined && {
-          safetyMarkdown: normalize(data.safetyMarkdown),
-        }),
-        ...(data.disclosuresMarkdown !== undefined && {
-          disclosuresMarkdown: normalize(data.disclosuresMarkdown),
-        }),
-      },
+      create: createData,
+      update: updateData,
     });
 
     await this.audit.log({

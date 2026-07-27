@@ -63,6 +63,10 @@ export class CreateAppointmentDto {
   @IsString()
   location?: string;
 
+  @IsOptional()
+  @IsString()
+  roomId?: string;
+
   @IsDateString()
   startTime!: string;
 
@@ -109,6 +113,10 @@ export class UpdateAppointmentDto {
   @IsOptional()
   @IsString()
   location?: string | null;
+
+  @IsOptional()
+  @IsString()
+  roomId?: string | null;
 
   @IsOptional()
   @IsDateString()

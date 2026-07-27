@@ -11,6 +11,7 @@ export type AppointmentStatus =
   | 'confirmed'
   | 'cancelled'
   | 'completed'
+  | 'no_show'
 
 export type EngagementType =
   | 'meeting'
@@ -77,11 +78,22 @@ export interface CongressPublic {
   id: string
   organizationId: string
   name: string
+  cventId: string | null
+  companyContactName: string | null
+  companyContactEmail: string | null
+  websiteUrl: string | null
   startDate: string | null
   endDate: string | null
   location: string | null
   status: CongressStatus
   createdAt: string
+}
+
+/** Linked disclosure row (Event App + Console authoring). */
+export interface DisclosureItemPublic {
+  title: string
+  url?: string | null
+  description?: string | null
 }
 
 export interface CongressGuidePublic {
@@ -91,13 +103,46 @@ export interface CongressGuidePublic {
   agendaMarkdown: string | null
   floorPlanUrl: string | null
   boothNotes: string | null
+  boothScheduleMarkdown: string | null
+  exhibitHallHoursMarkdown: string | null
+  staffDirectoryMarkdown: string | null
   logisticsMarkdown: string | null
   contactsMarkdown: string | null
   lodgingMarkdown: string | null
   safetyMarkdown: string | null
   disclosuresMarkdown: string | null
+  disclosureItems: DisclosureItemPublic[]
+  icwDinnersMarkdown: string | null
+  icwReceptionMarkdown: string | null
+  icwAdBoardsMarkdown: string | null
+  icwWorkRoomMarkdown: string | null
+  icwMeetingRoomsMarkdown: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface RoomPublic {
+  id: string
+  organizationId: string
+  congressId: string
+  title: string
+  sitting: number | null
+  capacity: number | null
+  hasAv: boolean
+  avNotes: string | null
+  layout: string | null
+  supplyList: string | null
+  notes: string | null
+  createdAt: string
+  /** Present on availability responses */
+  available?: boolean
+  conflictingAppointmentId?: string | null
+}
+
+export interface AvailabilitySlotPublic {
+  available: boolean
+  conflictingAppointmentId?: string | null
+  conflictingTitle?: string | null
 }
 
 export interface KolPublic {
@@ -129,6 +174,7 @@ export interface AppointmentPublic {
   id: string
   organizationId: string
   congressId: string
+  roomId: string | null
   kolId: string | null
   createdById: string | null
   title: string
@@ -144,6 +190,7 @@ export interface AppointmentPublic {
   createdAt: string
   kol?: KolPublic | null
   congress?: CongressPublic | null
+  room?: RoomPublic | null
   attendees?: AppointmentAttendeePublic[]
 }
 

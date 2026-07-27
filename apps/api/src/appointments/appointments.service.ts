@@ -19,6 +19,7 @@ import type { AttendeeInputDto } from './dto/appointments.dto';
 const appointmentInclude = {
   kol: true,
   congress: true,
+  room: true,
   attendees: { include: { kol: true }, orderBy: { createdAt: 'asc' as const } },
 } satisfies Prisma.AppointmentInclude;
 
@@ -35,6 +36,7 @@ export class AppointmentsService {
     data: {
       congressId: string;
       kolId?: string;
+      roomId?: string;
       title: string;
       location?: string;
       startTime: string;
@@ -71,9 +73,22 @@ export class AppointmentsService {
       }
     }
 
+    let roomId = data.roomId || null;
+    let roomTitle: string | null = null;
+    if (roomId) {
+      const room = await this.prisma.room.findFirst({
+        where: { id: roomId, organizationId, congressId: data.congressId },
+      });
+      if (!room) {
+        throw new NotFoundException('Room not found for this congress');
+      }
+      roomTitle = room.title;
+    }
+
     await this.assertNoConflicts({
       organizationId,
       kolId: primaryKolId,
+      roomId,
       createdById: userId,
       startTime,
       endTime,
@@ -83,15 +98,19 @@ export class AppointmentsService {
     const isContracted =
       data.isContracted ?? engagementType === EngagementType.contracted_talk;
 
+    const location =
+      data.location?.trim() || roomTitle || null;
+
     const appointment = await this.prisma.$transaction(async (tx) => {
       const created = await tx.appointment.create({
         data: {
           organizationId,
           congressId: data.congressId,
+          roomId,
           kolId: primaryKolId,
           createdById: userId,
           title: data.title.trim(),
-          location: data.location?.trim() || null,
+          location,
           startTime,
           endTime,
           status: data.status ?? AppointmentStatus.confirmed,
@@ -205,6 +224,7 @@ export class AppointmentsService {
     userId: string,
     data: {
       kolId?: string | null;
+      roomId?: string | null;
       title?: string;
       location?: string | null;
       startTime?: string;
@@ -226,12 +246,28 @@ export class AppointmentsService {
       throw new BadRequestException('startTime must be before endTime');
     }
 
+    let nextRoomId =
+      data.roomId === undefined ? existing.roomId : data.roomId;
+    if (nextRoomId) {
+      const room = await this.prisma.room.findFirst({
+        where: {
+          id: nextRoomId,
+          organizationId,
+          congressId: existing.congressId,
+        },
+      });
+      if (!room) {
+        throw new NotFoundException('Room not found for this congress');
+      }
+    }
+
     const nextStatus = data.status ?? existing.status;
     if (nextStatus !== AppointmentStatus.cancelled) {
       await this.assertNoConflicts({
         organizationId,
         kolId:
           data.kolId === undefined ? (existing.kolId ?? undefined) : data.kolId,
+        roomId: nextRoomId,
         createdById: existing.createdById ?? userId,
         startTime,
         endTime,
@@ -254,6 +290,19 @@ export class AppointmentsService {
     if (data.isContracted !== undefined) patch.isContracted = data.isContracted;
     if (data.contractNotes !== undefined) {
       patch.contractNotes = data.contractNotes?.trim() || null;
+    }
+    if (data.roomId !== undefined) {
+      if (data.roomId) {
+        patch.room = { connect: { id: data.roomId } };
+        if (data.location === undefined && !existing.location) {
+          const room = await this.prisma.room.findUniqueOrThrow({
+            where: { id: data.roomId },
+          });
+          patch.location = room.title;
+        }
+      } else {
+        patch.room = { disconnect: true };
+      }
     }
     if (data.kolId !== undefined) {
       if (data.kolId) {
@@ -446,6 +495,7 @@ export class AppointmentsService {
   private async assertNoConflicts(input: {
     organizationId: string;
     kolId?: string | null;
+    roomId?: string | null;
     createdById?: string | null;
     startTime: Date;
     endTime: Date;
@@ -460,6 +510,9 @@ export class AppointmentsService {
     }
     if (input.createdById) {
       orFilters.push({ createdById: input.createdById });
+    }
+    if (input.roomId) {
+      orFilters.push({ roomId: input.roomId });
     }
     if (orFilters.length === 0) {
       return;
@@ -485,8 +538,12 @@ export class AppointmentsService {
           candidate.endTime,
         )
       ) {
+        const isRoom =
+          !!input.roomId && candidate.roomId === input.roomId;
         throw new ConflictException({
-          message: 'Appointment conflicts with an existing booking',
+          message: isRoom
+            ? 'Room is already booked for this time'
+            : 'Appointment conflicts with an existing booking',
           conflictingAppointmentId: candidate.id,
         });
       }

@@ -188,6 +188,31 @@ async function openCampaign(campaignId: string) {
         <code>{&#123;congress&#125;}</code>,
         <code>{&#123;organization&#125;}</code>.
       </p>
+      <div class="mt-3 flex gap-2">
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          :to="`/app/${orgId}/appointments`"
+        >
+          Schedule
+        </UButton>
+        <UButton
+          size="xs"
+          color="primary"
+          variant="soft"
+        >
+          Outreach
+        </UButton>
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          :to="`/app/${orgId}/engagements`"
+        >
+          Hub
+        </UButton>
+      </div>
     </div>
 
     <UAlert

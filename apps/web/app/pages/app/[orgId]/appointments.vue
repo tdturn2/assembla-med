@@ -2,9 +2,11 @@
 import type {
   AppointmentAttendeePublic,
   AppointmentPublic,
+  AvailabilitySlotPublic,
   CongressPublic,
   EngagementType,
-  KolPublic
+  KolPublic,
+  RoomPublic
 } from '@assembla-med/shared'
 
 const route = useRoute()
@@ -49,6 +51,7 @@ const engagementOptions: { label: string, value: EngagementType }[] = [
 const form = reactive({
   congressId: '',
   kolId: '',
+  roomId: '',
   title: '',
   location: '',
   startTime: '',
@@ -83,6 +86,64 @@ watch(() => form.engagementType, (type) => {
   if (type === 'contracted_talk') {
     form.isContracted = true
   }
+})
+
+watch(() => form.congressId, () => {
+  form.roomId = ''
+})
+
+const { data: roomAvail, pending: roomAvailPending } = await useAsyncData(
+  `room-avail-${orgId}`,
+  async () => {
+    if (!form.congressId || !form.startTime || !form.endTime) {
+      return { rooms: [] as RoomPublic[] }
+    }
+    try {
+      return await api<{ rooms: RoomPublic[] }>(
+        `/organizations/${orgId}/congresses/${form.congressId}/rooms/availability?startTime=${encodeURIComponent(new Date(form.startTime).toISOString())}&endTime=${encodeURIComponent(new Date(form.endTime).toISOString())}`
+      )
+    } catch {
+      return await api<{ rooms: RoomPublic[] }>(
+        `/organizations/${orgId}/congresses/${form.congressId}/rooms`
+      )
+    }
+  },
+  {
+    watch: [() => form.congressId, () => form.startTime, () => form.endTime]
+  }
+)
+
+const { data: personAvail } = await useAsyncData(
+  `person-avail-${orgId}`,
+  async () => {
+    if (!form.kolId || !form.startTime || !form.endTime) {
+      return null as AvailabilitySlotPublic | null
+    }
+    try {
+      return await api<AvailabilitySlotPublic>(
+        `/organizations/${orgId}/availability/person?kolId=${encodeURIComponent(form.kolId)}&startTime=${encodeURIComponent(new Date(form.startTime).toISOString())}&endTime=${encodeURIComponent(new Date(form.endTime).toISOString())}`
+      )
+    } catch {
+      return null
+    }
+  },
+  {
+    watch: [() => form.kolId, () => form.startTime, () => form.endTime]
+  }
+)
+
+const roomItems = computed(() => {
+  const rooms = roomAvail.value?.rooms || []
+  return [
+    { label: 'No room', value: '' },
+    ...rooms.map((r) => ({
+      label: r.available === false
+        ? `${r.title} (busy)`
+        : `${r.title}${r.sitting != null ? ` · sit ${r.sitting}` : ''}${r.hasAv ? ' · AV' : ''}`,
+      value: r.id,
+      disabled: r.available === false
+    }))
+  ]
 })
 
 const congressItems = computed(() =>
@@ -128,6 +189,7 @@ async function onCreate() {
       body: {
         congressId: form.congressId,
         kolId: form.kolId || undefined,
+        roomId: form.roomId || undefined,
         title: form.title,
         location: form.location || undefined,
         startTime: new Date(form.startTime).toISOString(),
@@ -140,6 +202,7 @@ async function onCreate() {
     })
     form.title = ''
     form.location = ''
+    form.roomId = ''
     form.startTime = ''
     form.endTime = ''
     form.kolId = ''
@@ -219,6 +282,31 @@ async function removeAttendee(appointmentId: string, attendeeId: string) {
       <p class="mt-1 text-sm text-muted">
         Schedule meetings, mark contracted engagements, and manage who is attending.
       </p>
+      <div class="mt-3 flex gap-2">
+        <UButton
+          size="xs"
+          color="primary"
+          variant="soft"
+        >
+          Schedule
+        </UButton>
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          :to="`/app/${orgId}/outreach`"
+        >
+          Outreach
+        </UButton>
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          :to="`/app/${orgId}/engagements`"
+        >
+          Hub
+        </UButton>
+      </div>
     </div>
 
     <div class="rounded-lg border border-default bg-default p-4 space-y-3">
@@ -277,6 +365,27 @@ async function removeAttendee(appointmentId: string, attendeeId: string) {
             class="w-full"
           />
         </UFormField>
+        <UFormField label="Room">
+          <select
+            v-model="form.roomId"
+            class="w-full rounded-md border border-default bg-default px-3 py-2 text-sm"
+          >
+            <option
+              v-for="item in roomItems"
+              :key="item.value || 'none'"
+              :value="item.value"
+              :disabled="item.disabled"
+            >
+              {{ item.label }}
+            </option>
+          </select>
+          <p
+            v-if="roomAvailPending"
+            class="mt-1 text-xs text-muted"
+          >
+            Checking room availability…
+          </p>
+        </UFormField>
         <UFormField label="Engagement type">
           <select
             v-model="form.engagementType"
@@ -291,12 +400,29 @@ async function removeAttendee(appointmentId: string, attendeeId: string) {
             </option>
           </select>
         </UFormField>
-        <UFormField label="Location">
+        <UFormField
+          label="Location override"
+          class="sm:col-span-2"
+        >
           <UInput
             v-model="form.location"
             class="w-full"
+            placeholder="Defaults to room title when a room is selected"
           />
         </UFormField>
+        <p
+          v-if="personAvail && form.kolId"
+          class="sm:col-span-2 text-xs"
+          :class="personAvail.available ? 'text-muted' : 'text-error'"
+        >
+          <template v-if="personAvail.available">
+            Primary KOL looks free for this window.
+          </template>
+          <template v-else>
+            Primary KOL conflicts with
+            {{ personAvail.conflictingTitle || 'another appointment' }}.
+          </template>
+        </p>
         <div class="sm:col-span-2 flex items-start gap-3">
           <label class="flex items-center gap-2 text-sm pt-2">
             <input
@@ -395,6 +521,8 @@ async function removeAttendee(appointmentId: string, attendeeId: string) {
             </p>
             <p class="text-xs text-muted">
               {{ appt.congress?.name || 'Congress' }}
+              <span v-if="appt.room"> · {{ appt.room.title }}</span>
+              <span v-else-if="appt.location"> · {{ appt.location }}</span>
               <span v-if="appt.kol"> · {{ appt.kol.name }}</span>
               · {{ appt.status }}
               · {{ appt.engagementType.replace('_', ' ') }}

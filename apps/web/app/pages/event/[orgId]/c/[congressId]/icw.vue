@@ -7,13 +7,13 @@ const congressId = route.params.congressId as string
 
 definePageMeta({
   layout: 'event',
-  title: 'About'
+  title: 'ICW'
 })
 
 const { api } = useApi()
 
 const { data, pending } = await useAsyncData(
-  `event-about-${orgId}-${congressId}`,
+  `event-icw-${orgId}-${congressId}`,
   async () => {
     const [congressRes, guideRes] = await Promise.all([
       api<{ congress: CongressPublic }>(
@@ -26,33 +26,17 @@ const { data, pending } = await useAsyncData(
     return { congress: congressRes.congress, guide: guideRes.guide }
   }
 )
-
-watch(() => data.value?.congress.name, (name) => {
-  if (name) route.meta.title = name
-}, { immediate: true })
 </script>
 
 <template>
   <div class="space-y-6">
     <div>
       <h1 class="text-xl font-semibold text-highlighted tracking-tight">
-        {{ data?.congress.name || 'About' }}
+        In Congress Week
       </h1>
       <p class="mt-1 text-sm text-muted">
-        Agenda, booth, exhibit hall, staff
-      </p>
-      <p
-        v-if="data?.congress.websiteUrl"
-        class="mt-2"
-      >
-        <a
-          :href="data.congress.websiteUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-sm text-primary"
-        >
-          Congress website
-        </a>
+        Dinners, receptions, ad boards, work & meeting rooms
+        <span v-if="data?.congress.name"> · {{ data.congress.name }}</span>
       </p>
     </div>
     <div
@@ -63,34 +47,26 @@ watch(() => data.value?.congress.name, (name) => {
     </div>
     <template v-else-if="data">
       <EventGuideSection
-        title="Agenda"
-        :body="data.guide.agendaMarkdown"
+        title="Dinners"
+        :body="data.guide.icwDinnersMarkdown"
+        empty="No dinners listed (invite-only when published)."
       />
       <EventGuideSection
-        title="Floor plan"
-        :url="data.guide.floorPlanUrl"
-        url-label="Open floor plan"
-        empty="No floor plan URL yet."
+        title="Reception"
+        :body="data.guide.icwReceptionMarkdown"
       />
       <EventGuideSection
-        title="Booth notes"
-        :body="data.guide.boothNotes"
+        title="Ad boards"
+        :body="data.guide.icwAdBoardsMarkdown"
+        empty="No ad boards listed (invite-only when published)."
       />
       <EventGuideSection
-        title="Booth schedule"
-        :body="data.guide.boothScheduleMarkdown"
+        title="Work room"
+        :body="data.guide.icwWorkRoomMarkdown"
       />
       <EventGuideSection
-        title="Exhibit hall hours"
-        :body="data.guide.exhibitHallHoursMarkdown"
-      />
-      <EventGuideSection
-        title="Staff directory"
-        :body="data.guide.staffDirectoryMarkdown"
-      />
-      <EventGuideSection
-        title="Logistics"
-        :body="data.guide.logisticsMarkdown"
+        title="Meeting rooms"
+        :body="data.guide.icwMeetingRoomsMarkdown"
       />
     </template>
   </div>

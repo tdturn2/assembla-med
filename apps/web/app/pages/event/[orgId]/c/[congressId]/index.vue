@@ -49,10 +49,11 @@ const base = `/event/${orgId}/c/${congressId}`
 
 const links = [
   { label: 'Schedule', to: `${base}/calendar`, description: 'Company appointments' },
-  { label: 'About & booth', to: `${base}/about`, description: 'Agenda, floor plan, booth' },
+  { label: 'About & booth', to: `${base}/about`, description: 'Agenda, booth, exhibit, staff' },
+  { label: 'ICW', to: `${base}/icw`, description: 'Dinners, receptions, work rooms' },
   { label: 'Lodging', to: `${base}/lodging`, description: 'Hotel and nearby food' },
   { label: 'Contacts', to: `${base}/contacts`, description: 'Logistics & teammates' },
-  { label: 'Disclosures', to: `${base}/disclosures`, description: 'Symposiums & posters' },
+  { label: 'Disclosures', to: `${base}/disclosures`, description: 'Linked symposiums & posters' },
   { label: 'Safety', to: `${base}/safety`, description: 'Emergency & rally points' },
   { label: 'Check-in', to: `${base}/check-in`, description: 'Code / QR ToV capture' }
 ]

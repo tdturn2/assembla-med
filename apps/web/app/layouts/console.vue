@@ -21,15 +21,22 @@ const links = computed(() => {
   return [
     { label: 'Congresses', to: base, icon: 'i-lucide-calendar-days', exact: true },
     { label: 'KOLs', to: `${base}/kols`, icon: 'i-lucide-users', exact: false },
-    { label: 'Appointments', to: `${base}/appointments`, icon: 'i-lucide-clock-3', exact: false },
-    { label: 'Check-in', to: `${base}/check-in`, icon: 'i-lucide-qr-code', exact: false },
-    { label: 'Outreach', to: `${base}/outreach`, icon: 'i-lucide-mail', exact: false }
+    { label: 'Engagements', to: `${base}/engagements`, icon: 'i-lucide-handshake', exact: false },
+    { label: 'Check-in', to: `${base}/check-in`, icon: 'i-lucide-qr-code', exact: false }
   ]
 })
 
 function isActive(to: string, exact = false) {
   if (exact) {
     return route.path === to
+  }
+  if (to.endsWith('/engagements')) {
+    return (
+      route.path === to
+      || route.path.startsWith(`${to}/`)
+      || route.path.includes('/appointments')
+      || route.path.includes('/outreach')
+    )
   }
   return route.path === to || route.path.startsWith(`${to}/`)
 }
