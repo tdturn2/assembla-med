@@ -4,6 +4,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AppointmentStatus, Prisma } from '@prisma/client';
+import {
+  isIntervalWithinOpenHours,
+  parseOpenHours,
+  resolveTimeZone,
+  type RoomOpenHours,
+} from '@assembla-med/shared';
 import { AuditService } from '../audit/audit.service';
 import { overlaps } from '../common/utils';
 import { PrismaService } from '../prisma/prisma.service';
@@ -25,6 +31,15 @@ export class RoomsService {
     return congress;
   }
 
+  private normalizeOpenHours(value: unknown): RoomOpenHours | null {
+    if (value == null) return null;
+    const parsed = parseOpenHours(value);
+    if (!parsed) {
+      throw new BadRequestException('Invalid openHours payload');
+    }
+    return parsed;
+  }
+
   async create(
     organizationId: string,
     congressId: string,
@@ -38,10 +53,16 @@ export class RoomsService {
       layout?: string;
       supplyList?: string;
       notes?: string;
+      openHours?: unknown;
     },
     ipAddress?: string,
   ) {
     await this.assertCongress(organizationId, congressId);
+    const openHours =
+      data.openHours === undefined
+        ? null
+        : this.normalizeOpenHours(data.openHours);
+
     const room = await this.prisma.room.create({
       data: {
         organizationId,
@@ -54,6 +75,7 @@ export class RoomsService {
         layout: data.layout?.trim() || null,
         supplyList: data.supplyList?.trim() || null,
         notes: data.notes?.trim() || null,
+        openHours: openHours === null ? Prisma.JsonNull : openHours,
       },
     });
 
@@ -100,6 +122,7 @@ export class RoomsService {
       layout?: string | null;
       supplyList?: string | null;
       notes?: string | null;
+      openHours?: unknown;
     },
     ipAddress?: string,
   ) {
@@ -117,6 +140,10 @@ export class RoomsService {
       patch.supplyList = data.supplyList?.trim() || null;
     }
     if (data.notes !== undefined) patch.notes = data.notes?.trim() || null;
+    if (data.openHours !== undefined) {
+      const openHours = this.normalizeOpenHours(data.openHours);
+      patch.openHours = openHours === null ? Prisma.JsonNull : openHours;
+    }
 
     const room = await this.prisma.room.update({
       where: { id: roomId },
@@ -161,13 +188,14 @@ export class RoomsService {
     endTimeIso: string,
     excludeAppointmentId?: string,
   ) {
-    await this.assertCongress(organizationId, congressId);
+    const congress = await this.assertCongress(organizationId, congressId);
     const startTime = new Date(startTimeIso);
     const endTime = new Date(endTimeIso);
     if (!(startTime < endTime)) {
       throw new BadRequestException('startTime must be before endTime');
     }
 
+    const timezone = resolveTimeZone(congress.timezone);
     const [rooms, appointments] = await Promise.all([
       this.list(organizationId, congressId),
       this.prisma.appointment.findMany({
@@ -191,6 +219,13 @@ export class RoomsService {
     ]);
 
     return rooms.map((room) => {
+      const openHours = parseOpenHours(room.openHours);
+      const open = isIntervalWithinOpenHours(
+        startTime,
+        endTime,
+        openHours,
+        timezone,
+      );
       const conflict = appointments.find(
         (appt) =>
           appt.roomId === room.id &&
@@ -198,7 +233,8 @@ export class RoomsService {
       );
       return {
         ...room,
-        available: !conflict,
+        available: open && !conflict,
+        closed: !open,
         conflictingAppointmentId: conflict?.id ?? null,
       };
     });

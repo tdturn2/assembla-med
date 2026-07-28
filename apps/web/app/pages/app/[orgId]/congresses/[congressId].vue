@@ -5,9 +5,16 @@ import type {
   CongressGuidePublic,
   CongressPublic,
   DisclosureItemPublic,
-  RoomPublic
+  RoomOpenHours,
+  RoomPublic,
+  RoomWeekday
 } from '@assembla-med/shared'
-import { COMMON_TIMEZONES } from '@assembla-med/shared'
+import {
+  COMMON_TIMEZONES,
+  WEEKDAY_LABELS,
+  defaultWeekdayOpenHours,
+  hasConfiguredOpenHours
+} from '@assembla-med/shared'
 
 const route = useRoute()
 const orgId = route.params.orgId as string
@@ -154,8 +161,93 @@ const roomForm = reactive({
   avNotes: '',
   layout: '',
   supplyList: '',
-  notes: ''
+  notes: '',
+  restrictHours: false,
+  hoursStart: '08:00',
+  hoursEnd: '18:00'
 })
+
+const hoursBusy = ref<string | null>(null)
+const editingHoursId = ref<string | null>(null)
+const hoursDraft = reactive<Record<RoomWeekday, { enabled: boolean, start: string, end: string }>>({
+  0: { enabled: false, start: '08:00', end: '18:00' },
+  1: { enabled: true, start: '08:00', end: '18:00' },
+  2: { enabled: true, start: '08:00', end: '18:00' },
+  3: { enabled: true, start: '08:00', end: '18:00' },
+  4: { enabled: true, start: '08:00', end: '18:00' },
+  5: { enabled: true, start: '08:00', end: '18:00' },
+  6: { enabled: false, start: '08:00', end: '18:00' }
+})
+
+function openHoursPayloadFromDraft(): RoomOpenHours | null {
+  const weekly = WEEKDAY_LABELS
+    .filter(d => hoursDraft[d.day].enabled)
+    .map(d => ({
+      day: d.day,
+      start: hoursDraft[d.day].start,
+      end: hoursDraft[d.day].end
+    }))
+  return weekly.length ? { weekly } : null
+}
+
+function loadHoursDraft(openHours: RoomOpenHours | null | undefined) {
+  for (const day of WEEKDAY_LABELS) {
+    hoursDraft[day.day] = { enabled: false, start: '08:00', end: '18:00' }
+  }
+  if (!openHours?.weekly?.length) {
+    const defaults = defaultWeekdayOpenHours()
+    for (const row of defaults.weekly) {
+      hoursDraft[row.day] = { enabled: true, start: row.start, end: row.end }
+    }
+    return
+  }
+  for (const row of openHours.weekly) {
+    hoursDraft[row.day as RoomWeekday] = {
+      enabled: true,
+      start: row.start,
+      end: row.end
+    }
+  }
+}
+
+function startEditHours(room: RoomPublic) {
+  editingHoursId.value = room.id
+  loadHoursDraft(room.openHours)
+}
+
+function cancelEditHours() {
+  editingHoursId.value = null
+}
+
+async function saveRoomHours(roomId: string) {
+  hoursBusy.value = roomId
+  roomError.value = ''
+  try {
+    await api(`/organizations/${orgId}/rooms/${roomId}`, {
+      method: 'PATCH',
+      body: { openHours: openHoursPayloadFromDraft() }
+    })
+    editingHoursId.value = null
+    await refreshRooms()
+    toast.add({ title: 'Room hours updated', color: 'success' })
+  } catch (e: unknown) {
+    roomError.value = formatError(e, 'Unable to update room hours')
+  } finally {
+    hoursBusy.value = null
+  }
+}
+
+function formatHoursSummary(room: RoomPublic) {
+  if (!hasConfiguredOpenHours(room.openHours)) return 'Always open'
+  return WEEKDAY_LABELS
+    .map((d) => {
+      const rows = (room.openHours?.weekly || []).filter(w => w.day === d.day)
+      if (!rows.length) return null
+      return `${d.label} ${rows.map(r => `${r.start}–${r.end}`).join(', ')}`
+    })
+    .filter(Boolean)
+    .join(' · ')
+}
 
 async function createRoom() {
   roomError.value = ''
@@ -171,7 +263,10 @@ async function createRoom() {
         avNotes: roomForm.avNotes || undefined,
         layout: roomForm.layout || undefined,
         supplyList: roomForm.supplyList || undefined,
-        notes: roomForm.notes || undefined
+        notes: roomForm.notes || undefined,
+        openHours: roomForm.restrictHours
+          ? defaultWeekdayOpenHours(roomForm.hoursStart, roomForm.hoursEnd)
+          : null
       }
     })
     roomForm.title = ''
@@ -182,6 +277,9 @@ async function createRoom() {
     roomForm.layout = ''
     roomForm.supplyList = ''
     roomForm.notes = ''
+    roomForm.restrictHours = false
+    roomForm.hoursStart = '08:00'
+    roomForm.hoursEnd = '18:00'
     await refreshRooms()
     toast.add({ title: 'Room added', color: 'success' })
   } catch (e: unknown) {
@@ -1010,6 +1108,30 @@ async function downloadCventExport() {
             placeholder="Name tents, flip charts…"
           />
         </UFormField>
+        <label class="flex items-center gap-2 text-sm sm:col-span-2">
+          <input
+            v-model="roomForm.restrictHours"
+            type="checkbox"
+            class="rounded border-default"
+          >
+          <span>Restrict to weekday open hours</span>
+        </label>
+        <template v-if="roomForm.restrictHours">
+          <UFormField label="Open from">
+            <UInput
+              v-model="roomForm.hoursStart"
+              type="time"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Open until">
+            <UInput
+              v-model="roomForm.hoursEnd"
+              type="time"
+              class="w-full"
+            />
+          </UFormField>
+        </template>
       </div>
       <UAlert
         v-if="roomError"
@@ -1028,32 +1150,103 @@ async function downloadCventExport() {
         <li
           v-for="room in roomsData?.rooms || []"
           :key="room.id"
-          class="flex items-start justify-between gap-3 px-3 py-3 text-sm"
+          class="px-3 py-3 text-sm space-y-2"
         >
-          <div class="min-w-0">
-            <p class="font-medium text-highlighted">
-              {{ room.title }}
-            </p>
-            <p class="text-xs text-muted mt-0.5">
-              <span v-if="room.sitting != null">Sitting {{ room.sitting }}</span>
-              <span v-if="room.capacity != null"> · Cap {{ room.capacity }}</span>
-              <span v-if="room.hasAv"> · AV</span>
-              <span v-if="room.layout"> · {{ room.layout }}</span>
-            </p>
-            <p
-              v-if="room.supplyList"
-              class="text-xs text-muted mt-1 whitespace-pre-wrap"
-            >
-              Supplies: {{ room.supplyList }}
-            </p>
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="font-medium text-highlighted">
+                {{ room.title }}
+              </p>
+              <p class="text-xs text-muted mt-0.5">
+                <span v-if="room.sitting != null">Sitting {{ room.sitting }}</span>
+                <span v-if="room.capacity != null"> · Cap {{ room.capacity }}</span>
+                <span v-if="room.hasAv"> · AV</span>
+                <span v-if="room.layout"> · {{ room.layout }}</span>
+              </p>
+              <p class="text-xs text-muted mt-1">
+                Hours: {{ formatHoursSummary(room) }}
+                <span class="text-muted"> · {{ congressData?.congress?.timezone || 'UTC' }}</span>
+              </p>
+              <p
+                v-if="room.supplyList"
+                class="text-xs text-muted mt-1 whitespace-pre-wrap"
+              >
+                Supplies: {{ room.supplyList }}
+              </p>
+            </div>
+            <div class="flex shrink-0 gap-1">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="soft"
+                @click="startEditHours(room)"
+              >
+                Hours
+              </UButton>
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-trash-2"
+                @click="deleteRoom(room.id)"
+              />
+            </div>
           </div>
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-trash-2"
-            @click="deleteRoom(room.id)"
-          />
+          <div
+            v-if="editingHoursId === room.id"
+            class="rounded-md border border-default bg-elevated/40 p-3 space-y-2"
+          >
+            <p class="text-xs font-medium text-highlighted uppercase tracking-wide">
+              Weekly open hours ({{ congressData?.congress?.timezone || 'UTC' }})
+            </p>
+            <div
+              v-for="day in WEEKDAY_LABELS"
+              :key="day.day"
+              class="grid grid-cols-[4rem_auto_1fr_1fr] items-center gap-2"
+            >
+              <label class="flex items-center gap-2 text-xs">
+                <input
+                  v-model="hoursDraft[day.day].enabled"
+                  type="checkbox"
+                  class="rounded border-default"
+                >
+                {{ day.label }}
+              </label>
+              <span class="text-xs text-muted"> </span>
+              <UInput
+                v-model="hoursDraft[day.day].start"
+                type="time"
+                size="sm"
+                :disabled="!hoursDraft[day.day].enabled"
+              />
+              <UInput
+                v-model="hoursDraft[day.day].end"
+                type="time"
+                size="sm"
+                :disabled="!hoursDraft[day.day].enabled"
+              />
+            </div>
+            <p class="text-xs text-muted">
+              Clear all days to make the room always open.
+            </p>
+            <div class="flex gap-2">
+              <UButton
+                size="sm"
+                :loading="hoursBusy === room.id"
+                @click="saveRoomHours(room.id)"
+              >
+                Save hours
+              </UButton>
+              <UButton
+                size="sm"
+                color="neutral"
+                variant="ghost"
+                @click="cancelEditHours"
+              >
+                Cancel
+              </UButton>
+            </div>
+          </div>
         </li>
         <li
           v-if="!(roomsData?.rooms || []).length"

@@ -178,11 +178,13 @@ const roomItems = computed(() => {
   return [
     { label: 'No room', value: '', disabled: false },
     ...rooms.map((r) => ({
-      label: r.available === false
-        ? `${r.title} (busy)`
-        : `${r.title}${r.sitting != null ? ` · sit ${r.sitting}` : ''}${r.hasAv ? ' · AV' : ''}`,
+      label: r.closed
+        ? `${r.title} (closed)`
+        : r.available === false
+          ? `${r.title} (busy)`
+          : `${r.title}${r.sitting != null ? ` · sit ${r.sitting}` : ''}${r.hasAv ? ' · AV' : ''}`,
       value: r.id,
-      disabled: r.available === false
+      disabled: r.available === false || r.closed === true
     }))
   ]
 })
@@ -340,11 +342,13 @@ const editRoomItems = computed(() => {
   return [
     { label: 'No room', value: '', disabled: false },
     ...rooms.map((r) => ({
-      label: r.available === false
-        ? `${r.title} (busy)`
-        : `${r.title}${r.sitting != null ? ` · sit ${r.sitting}` : ''}${r.hasAv ? ' · AV' : ''}`,
+      label: r.closed
+        ? `${r.title} (closed)`
+        : r.available === false
+          ? `${r.title} (busy)`
+          : `${r.title}${r.sitting != null ? ` · sit ${r.sitting}` : ''}${r.hasAv ? ' · AV' : ''}`,
       value: r.id,
-      disabled: r.available === false
+      disabled: r.available === false || r.closed === true
     }))
   ]
 })

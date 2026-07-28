@@ -130,8 +130,8 @@ Each phase has a **goal**, **ship list**, and **exit criteria**. Do not start th
 
 **Exit criteria**
 
-- [ ] Cannot confirm a meeting in a closed room window
-- [ ] Rooms availability UI shows closed vs busy vs free
+- [x] Cannot confirm a meeting in a closed room window
+- [x] Rooms availability UI shows closed vs busy vs free
 
 ---
 

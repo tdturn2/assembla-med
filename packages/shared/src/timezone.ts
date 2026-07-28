@@ -49,9 +49,14 @@ function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
-function getPartsInZone(date: Date, timeZone: string): ZoneParts {
+/** Calendar + clock parts of an instant in a timezone. */
+export function getZonedDateParts(
+  utcIso: string | Date,
+  timeZone: string,
+): ZoneParts {
+  const date = typeof utcIso === 'string' ? new Date(utcIso) : utcIso
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
+    timeZone: resolveTimeZone(timeZone),
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -76,6 +81,10 @@ function getPartsInZone(date: Date, timeZone: string): ZoneParts {
     minute: Number(map.minute),
     second: Number(map.second),
   }
+}
+
+function getPartsInZone(date: Date, timeZone: string): ZoneParts {
+  return getZonedDateParts(date, timeZone)
 }
 
 /**

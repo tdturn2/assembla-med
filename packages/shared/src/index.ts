@@ -1,6 +1,9 @@
 /** Shared contracts between Console (Nuxt) and API (Nest). */
 
 export * from './timezone.js'
+export * from './room-hours.js'
+
+import type { RoomOpenHours } from './room-hours.js'
 
 export type SubscriptionTier = 'core' | 'core_plus'
 
@@ -137,9 +140,12 @@ export interface RoomPublic {
   layout: string | null
   supplyList: string | null
   notes: string | null
+  openHours: RoomOpenHours | null
   createdAt: string
   /** Present on availability responses */
   available?: boolean
+  /** True when the requested window is outside open hours */
+  closed?: boolean
   conflictingAppointmentId?: string | null
 }
 

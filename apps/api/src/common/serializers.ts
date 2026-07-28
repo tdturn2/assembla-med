@@ -15,24 +15,25 @@ import type {
   Room,
   User,
 } from '@prisma/client';
-import type {
-  AppointmentAttendeePublic,
-  AppointmentPublic,
-  CampaignPublic,
-  CheckInPublic,
-  CongressGuidePublic,
-  CongressPublic,
-  DisclosureItemPublic,
-  InvitationPublic,
-  InvitationTemplatePublic,
-  KolPublic,
-  MeetingRequestAttendeePublic,
-  MeetingRequestPublic,
-  MeResponse,
-  MembershipPublic,
-  OrganizationPublic,
-  RoomPublic,
-  UserPublic,
+import {
+  parseOpenHours,
+  type AppointmentAttendeePublic,
+  type AppointmentPublic,
+  type CampaignPublic,
+  type CheckInPublic,
+  type CongressGuidePublic,
+  type CongressPublic,
+  type DisclosureItemPublic,
+  type InvitationPublic,
+  type InvitationTemplatePublic,
+  type KolPublic,
+  type MeetingRequestAttendeePublic,
+  type MeetingRequestPublic,
+  type MeResponse,
+  type MembershipPublic,
+  type OrganizationPublic,
+  type RoomPublic,
+  type UserPublic,
 } from '@assembla-med/shared';
 
 type MembershipWithOrg = Membership & { organization: Organization };
@@ -53,6 +54,7 @@ type CheckInWithRelations = CheckIn & {
 export function toRoomPublic(
   room: Room & {
     available?: boolean;
+    closed?: boolean;
     conflictingAppointmentId?: string | null;
   },
 ): RoomPublic {
@@ -68,8 +70,10 @@ export function toRoomPublic(
     layout: room.layout,
     supplyList: room.supplyList,
     notes: room.notes,
+    openHours: parseOpenHours(room.openHours),
     createdAt: room.createdAt.toISOString(),
     ...(room.available !== undefined && { available: room.available }),
+    ...(room.closed !== undefined && { closed: room.closed }),
     ...(room.conflictingAppointmentId !== undefined && {
       conflictingAppointmentId: room.conflictingAppointmentId,
     }),

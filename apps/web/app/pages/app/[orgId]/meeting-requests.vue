@@ -143,11 +143,13 @@ const { data: scheduleRooms, pending: roomsPending } = await useAsyncData(
 const roomItems = computed(() => [
   { label: 'No room', value: '', disabled: false },
   ...(scheduleRooms.value?.rooms || []).map(r => ({
-    label: r.available === false
-      ? `${r.title} (busy)`
-      : `${r.title}${r.hasAv ? ' · AV' : ''}`,
+    label: r.closed
+      ? `${r.title} (closed)`
+      : r.available === false
+        ? `${r.title} (busy)`
+        : `${r.title}${r.hasAv ? ' · AV' : ''}`,
     value: r.id,
-    disabled: r.available === false
+    disabled: r.available === false || r.closed === true
   }))
 ])
 

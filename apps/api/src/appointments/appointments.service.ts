@@ -11,6 +11,11 @@ import {
   EngagementType,
   Prisma,
 } from '@prisma/client';
+import {
+  isIntervalWithinOpenHours,
+  parseOpenHours,
+  resolveTimeZone,
+} from '@assembla-med/shared';
 import { AuditService } from '../audit/audit.service';
 import { generateCheckInCode, overlaps } from '../common/utils';
 import { PrismaService } from '../prisma/prisma.service';
@@ -82,6 +87,13 @@ export class AppointmentsService {
       if (!room) {
         throw new NotFoundException('Room not found for this congress');
       }
+      this.assertRoomOpen(
+        room.openHours,
+        congress.timezone,
+        startTime,
+        endTime,
+        room.title,
+      );
       roomTitle = room.title;
     }
 
@@ -253,6 +265,7 @@ export class AppointmentsService {
 
     let nextRoomId =
       data.roomId === undefined ? existing.roomId : data.roomId;
+    const nextStatus = data.status ?? existing.status;
     if (nextRoomId) {
       const room = await this.prisma.room.findFirst({
         where: {
@@ -264,9 +277,17 @@ export class AppointmentsService {
       if (!room) {
         throw new NotFoundException('Room not found for this congress');
       }
+      if (nextStatus !== AppointmentStatus.cancelled) {
+        this.assertRoomOpen(
+          room.openHours,
+          existing.congress?.timezone,
+          startTime,
+          endTime,
+          room.title,
+        );
+      }
     }
 
-    const nextStatus = data.status ?? existing.status;
     if (nextStatus !== AppointmentStatus.cancelled) {
       const nextKolId =
         data.kolId === undefined ? existing.kolId : data.kolId;
@@ -574,6 +595,28 @@ export class AppointmentsService {
           conflictingAppointmentId: candidate.id,
         });
       }
+    }
+  }
+
+  private assertRoomOpen(
+    openHoursJson: unknown,
+    timezone: string | null | undefined,
+    startTime: Date,
+    endTime: Date,
+    roomTitle: string,
+  ) {
+    const openHours = parseOpenHours(openHoursJson);
+    if (
+      !isIntervalWithinOpenHours(
+        startTime,
+        endTime,
+        openHours,
+        resolveTimeZone(timezone),
+      )
+    ) {
+      throw new BadRequestException(
+        `Room "${roomTitle}" is closed for the selected time`,
+      );
     }
   }
 

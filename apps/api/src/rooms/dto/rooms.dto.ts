@@ -1,12 +1,60 @@
 import {
+  IsArray,
   IsBoolean,
   IsInt,
   IsOptional,
   IsString,
+  Max,
   Min,
   MinLength,
+  ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export class RoomDayHoursDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(6)
+  day!: number;
+
+  @IsString()
+  start!: string;
+
+  @IsString()
+  end!: string;
+}
+
+export class RoomDateOverrideDto {
+  @IsString()
+  date!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  closed?: boolean;
+
+  @IsOptional()
+  @IsString()
+  start?: string;
+
+  @IsOptional()
+  @IsString()
+  end?: string;
+}
+
+export class RoomOpenHoursDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RoomDayHoursDto)
+  weekly!: RoomDayHoursDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RoomDateOverrideDto)
+  overrides?: RoomDateOverrideDto[];
+}
 
 export class CreateRoomDto {
   @IsString()
@@ -44,6 +92,12 @@ export class CreateRoomDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @ValidateNested()
+  @Type(() => RoomOpenHoursDto)
+  openHours?: RoomOpenHoursDto | null;
 }
 
 export class UpdateRoomDto {
@@ -83,4 +137,10 @@ export class UpdateRoomDto {
   @IsOptional()
   @IsString()
   notes?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @ValidateNested()
+  @Type(() => RoomOpenHoursDto)
+  openHours?: RoomOpenHoursDto | null;
 }
