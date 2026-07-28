@@ -9,6 +9,7 @@ import { CongressesModule } from './congresses/congresses.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { KolsModule } from './kols/kols.module';
 import { MailModule } from './mail/mail.module';
+import { MeetingRequestsModule } from './meeting-requests/meeting-requests.module';
 import { OrgsModule } from './orgs/orgs.module';
 import { OutreachModule } from './outreach/outreach.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -26,6 +27,7 @@ import { StorageModule } from './file-store/storage.module';
     CongressesModule,
     KolsModule,
     AppointmentsModule,
+    MeetingRequestsModule,
     CheckInsModule,
     OutreachModule,
     IntegrationsModule,

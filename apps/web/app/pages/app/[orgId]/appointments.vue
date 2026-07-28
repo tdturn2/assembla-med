@@ -397,6 +397,14 @@ async function saveEdit() {
           size="xs"
           color="neutral"
           variant="ghost"
+          :to="`/app/${orgId}/meeting-requests`"
+        >
+          Requests
+        </UButton>
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
           :to="`/app/${orgId}/outreach`"
         >
           Outreach

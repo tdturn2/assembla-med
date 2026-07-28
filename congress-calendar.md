@@ -135,7 +135,7 @@ No hard room/time required yet.
 | Booth/vendor | Guide markdown | `StaffShift` |
 | Roles | Org roles + attendee kinds | Meeting participant roles |
 | Types | Partial `EngagementType` | Expand + contracted/CDA subtypes |
-| Step 1 | Missing | `MeetingRequest` |
+| Step 1 | `MeetingRequest` + Console intake | ECCO import / offered slots later |
 | Step 2 | Book appointment | + holds, comments, offered times |
 | Step 3 | Deferred | T7 outbound |
 | Step 4 | Check-in + outcomes | + F&B, walk-in, CDA |

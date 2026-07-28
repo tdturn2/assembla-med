@@ -36,6 +36,7 @@ function isActive(to: string, exact = false) {
       || route.path.startsWith(`${to}/`)
       || route.path.includes('/appointments')
       || route.path.includes('/outreach')
+      || route.path.includes('/meeting-requests')
     )
   }
   return route.path === to || route.path.startsWith(`${to}/`)

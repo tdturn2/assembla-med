@@ -7,6 +7,8 @@ import type {
   Invitation,
   InvitationTemplate,
   Kol,
+  MeetingRequest,
+  MeetingRequestAttendee,
   Membership,
   Organization,
   OutreachCampaign,
@@ -24,6 +26,8 @@ import type {
   InvitationPublic,
   InvitationTemplatePublic,
   KolPublic,
+  MeetingRequestAttendeePublic,
+  MeetingRequestPublic,
   MeResponse,
   MembershipPublic,
   OrganizationPublic,
@@ -338,5 +342,73 @@ export function toCampaignPublic(
     template: campaign.template ? toTemplatePublic(campaign.template) : null,
     congress: campaign.congress ? toCongressPublic(campaign.congress) : null,
     invitations: campaign.invitations?.map(toInvitationPublic),
+  };
+}
+
+type MeetingRequestAttendeeWithRelations = MeetingRequestAttendee & {
+  kol?: Kol | null;
+};
+
+type MeetingRequestWithRelations = MeetingRequest & {
+  congress?: Congress | null;
+  appointment?: AppointmentWithRelations | null;
+  attendees?: MeetingRequestAttendeeWithRelations[];
+};
+
+export function toMeetingRequestAttendeePublic(
+  attendee: MeetingRequestAttendeeWithRelations,
+): MeetingRequestAttendeePublic {
+  return {
+    id: attendee.id,
+    meetingRequestId: attendee.meetingRequestId,
+    kind: attendee.kind,
+    kolId: attendee.kolId,
+    name: attendee.name,
+    email: attendee.email,
+    country: attendee.country,
+    isPrimary: attendee.isPrimary,
+    notes: attendee.notes,
+    createdAt: attendee.createdAt.toISOString(),
+    kol: attendee.kol ? toKolPublic(attendee.kol) : null,
+  };
+}
+
+export function toMeetingRequestPublic(
+  request: MeetingRequestWithRelations,
+): MeetingRequestPublic {
+  return {
+    id: request.id,
+    organizationId: request.organizationId,
+    congressId: request.congressId,
+    createdById: request.createdById,
+    appointmentId: request.appointmentId,
+    status: request.status,
+    engagementType: request.engagementType,
+    isContracted: request.isContracted,
+    needsCda: request.needsCda,
+    topic: request.topic,
+    informalTopicPreset: request.informalTopicPreset,
+    contractObjective: request.contractObjective,
+    requestedDurationMinutes: request.requestedDurationMinutes,
+    avNeeded: request.avNeeded,
+    meetingOwnerName: request.meetingOwnerName,
+    meetingOwnerEmail: request.meetingOwnerEmail,
+    meetingOwnerPhone: request.meetingOwnerPhone,
+    meetingOwnerFunctionalArea: request.meetingOwnerFunctionalArea,
+    budgetApprover: request.budgetApprover,
+    costCenter: request.costCenter,
+    productTags: request.productTags || [],
+    cdaScope: request.cdaScope,
+    cdaStage: request.cdaStage,
+    comments: request.comments,
+    schedulingNotes: request.schedulingNotes,
+    contractNotes: request.contractNotes,
+    withdrawnReason: request.withdrawnReason,
+    createdAt: request.createdAt.toISOString(),
+    congress: request.congress ? toCongressPublic(request.congress) : null,
+    appointment: request.appointment
+      ? toAppointmentPublic(request.appointment)
+      : null,
+    attendees: request.attendees?.map(toMeetingRequestAttendeePublic),
   };
 }

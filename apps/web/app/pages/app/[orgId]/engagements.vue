@@ -9,10 +9,13 @@ definePageMeta({
 
 const tab = computed(() => {
   const value = route.query.tab
-  return value === 'outreach' ? 'outreach' : 'schedule'
+  if (value === 'outreach') return 'outreach'
+  if (value === 'requests') return 'requests'
+  return 'schedule'
 })
 
 const scheduleTo = computed(() => `/app/${orgId}/appointments`)
+const requestsTo = computed(() => `/app/${orgId}/meeting-requests`)
 const outreachTo = computed(() => `/app/${orgId}/outreach`)
 </script>
 
@@ -23,16 +26,24 @@ const outreachTo = computed(() => `/app/${orgId}/outreach`)
         Engagements
       </h1>
       <p class="mt-1 text-sm text-muted">
-        Appointments and outreach in one place — schedule meetings, then invite KOLs.
+        Request demand, schedule appointments, then invite KOLs.
       </p>
     </div>
 
     <div class="flex gap-2 border-b border-default pb-2">
       <UButton
         size="sm"
+        :color="tab === 'requests' ? 'primary' : 'neutral'"
+        :variant="tab === 'requests' ? 'solid' : 'ghost'"
+        :to="requestsTo"
+      >
+        Requests
+      </UButton>
+      <UButton
+        size="sm"
         :color="tab === 'schedule' ? 'primary' : 'neutral'"
         :variant="tab === 'schedule' ? 'solid' : 'ghost'"
-        :to="`${scheduleTo}`"
+        :to="scheduleTo"
       >
         Schedule
       </UButton>
@@ -46,7 +57,18 @@ const outreachTo = computed(() => `/app/${orgId}/outreach`)
       </UButton>
     </div>
 
-    <div class="grid gap-3 sm:grid-cols-2">
+    <div class="grid gap-3 sm:grid-cols-3">
+      <NuxtLink
+        :to="requestsTo"
+        class="rounded-lg border border-default bg-default p-4 hover:bg-elevated/50"
+      >
+        <p class="font-medium text-highlighted">
+          Meeting requests
+        </p>
+        <p class="mt-1 text-sm text-muted">
+          Capture demand before room and time.
+        </p>
+      </NuxtLink>
       <NuxtLink
         :to="scheduleTo"
         class="rounded-lg border border-default bg-default p-4 hover:bg-elevated/50"
@@ -66,7 +88,7 @@ const outreachTo = computed(() => `/app/${orgId}/outreach`)
           Outreach
         </p>
         <p class="mt-1 text-sm text-muted">
-          Templates, campaigns, and KOL invitations (incl. receptions).
+          Templates, campaigns, and KOL invitations.
         </p>
       </NuxtLink>
     </div>

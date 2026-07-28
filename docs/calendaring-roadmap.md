@@ -89,14 +89,14 @@ Each phase has a **goal**, **ship list**, and **exit criteria**. Do not start th
 
 | Work | Detail |
 |---|---|
-| `MeetingRequest` model | TL contacts, type, topic, contracted/CDA flags, length, AV, cost center, comments, attendees |
-| Console intake | Create/list requests; convert → appointment when scheduled |
+| `MeetingRequest` model | TL contacts (multi), type, topic/presets, contracted/CDA, length, AV, MO + cost center, product tags, comments |
+| Console intake | Create/list/withdraw; convert → appointment when scheduled |
 | Statuses | `submitted` → `scheduling` → `scheduled` / `withdrawn` |
 
 **Exit criteria**
 
-- [ ] Requester can submit without choosing room/time
-- [ ] Scheduler can promote a request to an appointment (T0 conflict rules apply)
+- [x] Requester can submit without choosing room/time
+- [x] Scheduler can promote a request to an appointment (T0 conflict rules apply)
 
 ---
 

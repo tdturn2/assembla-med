@@ -233,6 +233,69 @@ export type InvitationStatus =
   | 'responded'
   | 'declined'
 
+export type MeetingRequestStatus =
+  | 'submitted'
+  | 'scheduling'
+  | 'scheduled'
+  | 'withdrawn'
+
+/** ECCO-style informal topic presets */
+export type InformalTopicPreset =
+  | 'introductory'
+  | 'reconnect'
+  | 'follow_up'
+  | 'interest'
+  | 'activity_schedule'
+  | 'other'
+
+export interface MeetingRequestAttendeePublic {
+  id: string
+  meetingRequestId: string
+  kind: AttendeeKind
+  kolId: string | null
+  name: string
+  email: string | null
+  country: string | null
+  isPrimary: boolean
+  notes: string | null
+  createdAt: string
+  kol?: KolPublic | null
+}
+
+export interface MeetingRequestPublic {
+  id: string
+  organizationId: string
+  congressId: string
+  createdById: string | null
+  appointmentId: string | null
+  status: MeetingRequestStatus
+  engagementType: EngagementType
+  isContracted: boolean
+  needsCda: boolean
+  topic: string | null
+  informalTopicPreset: InformalTopicPreset | string | null
+  contractObjective: string | null
+  requestedDurationMinutes: number
+  avNeeded: boolean
+  meetingOwnerName: string | null
+  meetingOwnerEmail: string | null
+  meetingOwnerPhone: string | null
+  meetingOwnerFunctionalArea: string | null
+  budgetApprover: string | null
+  costCenter: string | null
+  productTags: string[]
+  cdaScope: string | null
+  cdaStage: string | null
+  comments: string | null
+  schedulingNotes: string | null
+  contractNotes: string | null
+  withdrawnReason: string | null
+  createdAt: string
+  congress?: CongressPublic | null
+  appointment?: AppointmentPublic | null
+  attendees?: MeetingRequestAttendeePublic[]
+}
+
 export interface InvitationTemplatePublic {
   id: string
   organizationId: string

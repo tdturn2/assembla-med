@@ -88,6 +88,13 @@ enum IntegrationPushStatus {
   skipped
 }
 
+enum MeetingRequestStatus {
+  submitted
+  scheduling
+  scheduled
+  withdrawn
+}
+
 model User {
   id                 String        @id @default(cuid())
   email              String        @unique
@@ -101,6 +108,7 @@ model User {
   checkInsPerformed  CheckIn[]     @relation("CheckInStaff")
   campaignsCreated   OutreachCampaign[] @relation("CampaignCreator")
   appointmentAttendances AppointmentAttendee[]
+  meetingRequestsCreated MeetingRequest[] @relation("MeetingRequestCreator")
 
   @@map("users")
 }
@@ -137,6 +145,8 @@ model Organization {
   congressGuides   CongressGuide[]
   mockIntegrationRecords MockIntegrationRecord[]
   rooms            Room[]
+  meetingRequests  MeetingRequest[]
+  meetingRequestAttendees MeetingRequestAttendee[]
 
   @@map("organizations")
 }
@@ -193,6 +203,7 @@ model Congress {
   campaigns           OutreachCampaign[]
   guide               CongressGuide?
   rooms               Room[]
+  meetingRequests     MeetingRequest[]
 
   @@index([organizationId, status])
   @@map("congresses")
@@ -268,6 +279,7 @@ model Kol {
   appointments    Appointment[]
   invitations     Invitation[]
   appointmentAttendances AppointmentAttendee[]
+  meetingRequestAttendances MeetingRequestAttendee[]
 
   @@index([organizationId, name])
   @@index([organizationId, email])
@@ -301,6 +313,7 @@ model Appointment {
   checkIns        CheckIn[]
   invitations     Invitation[]
   attendees       AppointmentAttendee[]
+  meetingRequest  MeetingRequest?
 
   @@index([organizationId, startTime])
   @@index([congressId, startTime])
@@ -308,6 +321,73 @@ model Appointment {
   @@index([kolId, startTime])
   @@index([createdById, startTime])
   @@map("appointments")
+}
+
+/// Step 1 demand intake — no room/time required until promoted to Appointment.
+model MeetingRequest {
+  id                        String               @id @default(cuid())
+  organizationId            String               @map("organization_id")
+  congressId                String               @map("congress_id")
+  createdById               String?              @map("created_by_id")
+  appointmentId             String?              @unique @map("appointment_id")
+  status                    MeetingRequestStatus @default(submitted)
+  engagementType            EngagementType       @default(meeting) @map("engagement_type")
+  isContracted              Boolean              @default(false) @map("is_contracted")
+  needsCda                  Boolean              @default(false) @map("needs_cda")
+  topic                     String?
+  /// ECCO-style informal preset: introductory | reconnect | follow_up | interest | activity_schedule | other
+  informalTopicPreset       String?              @map("informal_topic_preset")
+  contractObjective         String?              @map("contract_objective")
+  requestedDurationMinutes  Int                  @default(30) @map("requested_duration_minutes")
+  avNeeded                  Boolean              @default(false) @map("av_needed")
+  meetingOwnerName          String?              @map("meeting_owner_name")
+  meetingOwnerEmail         String?              @map("meeting_owner_email")
+  meetingOwnerPhone         String?              @map("meeting_owner_phone")
+  meetingOwnerFunctionalArea String?             @map("meeting_owner_functional_area")
+  budgetApprover            String?              @map("budget_approver")
+  costCenter                String?              @map("cost_center")
+  productTags               String[]             @default([]) @map("product_tags")
+  cdaScope                  String?              @map("cda_scope")
+  cdaStage                  String?              @map("cda_stage")
+  comments                  String?
+  schedulingNotes           String?              @map("scheduling_notes")
+  contractNotes             String?              @map("contract_notes")
+  withdrawnReason           String?              @map("withdrawn_reason")
+  createdAt                 DateTime             @default(now()) @map("created_at")
+  updatedAt                 DateTime             @updatedAt @map("updated_at")
+  organization              Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  congress                  Congress             @relation(fields: [congressId], references: [id], onDelete: Cascade)
+  createdBy                 User?                @relation("MeetingRequestCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  appointment               Appointment?         @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  attendees                 MeetingRequestAttendee[]
+
+  @@index([organizationId, status])
+  @@index([congressId, status])
+  @@index([organizationId, congressId, createdAt])
+  @@map("meeting_requests")
+}
+
+model MeetingRequestAttendee {
+  id               String         @id @default(cuid())
+  organizationId   String         @map("organization_id")
+  meetingRequestId String         @map("meeting_request_id")
+  kind             AttendeeKind   @default(kol)
+  kolId            String?        @map("kol_id")
+  name             String
+  email            String?
+  country          String?
+  isPrimary        Boolean        @default(false) @map("is_primary")
+  notes            String?
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  organization     Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  meetingRequest   MeetingRequest @relation(fields: [meetingRequestId], references: [id], onDelete: Cascade)
+  kol              Kol?           @relation(fields: [kolId], references: [id], onDelete: SetNull)
+
+  @@index([meetingRequestId])
+  @@index([organizationId, meetingRequestId])
+  @@index([kolId])
+  @@map("meeting_request_attendees")
 }
 
 model AppointmentAttendee {
