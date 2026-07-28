@@ -7,6 +7,7 @@ import type {
   DisclosureItemPublic,
   RoomPublic
 } from '@assembla-med/shared'
+import { COMMON_TIMEZONES } from '@assembla-med/shared'
 
 const route = useRoute()
 const orgId = route.params.orgId as string
@@ -73,6 +74,7 @@ const congressForm = reactive({
   companyContactEmail: '',
   websiteUrl: '',
   location: '',
+  timezone: 'UTC',
   startDate: '',
   endDate: '',
   status: 'planning' as CongressPublic['status']
@@ -86,6 +88,7 @@ watch(() => congressData.value?.congress, (congress) => {
   congressForm.companyContactEmail = congress.companyContactEmail || ''
   congressForm.websiteUrl = congress.websiteUrl || ''
   congressForm.location = congress.location || ''
+  congressForm.timezone = congress.timezone || 'UTC'
   congressForm.startDate = congress.startDate || ''
   congressForm.endDate = congress.endDate || ''
   congressForm.status = congress.status
@@ -296,6 +299,7 @@ async function saveCongress() {
         companyContactEmail: congressForm.companyContactEmail || null,
         websiteUrl: congressForm.websiteUrl || null,
         location: congressForm.location || null,
+        timezone: congressForm.timezone,
         startDate: congressForm.startDate || null,
         endDate: congressForm.endDate || null,
         status: congressForm.status
@@ -633,6 +637,20 @@ async function downloadCventExport() {
             v-model="congressForm.location"
             class="w-full"
           />
+        </UFormField>
+        <UFormField label="Venue timezone">
+          <select
+            v-model="congressForm.timezone"
+            class="w-full rounded-md border border-default bg-default px-3 py-2 text-sm"
+          >
+            <option
+              v-for="tz in COMMON_TIMEZONES"
+              :key="tz.value"
+              :value="tz.value"
+            >
+              {{ tz.label }}
+            </option>
+          </select>
         </UFormField>
         <UFormField label="Start date">
           <UInput

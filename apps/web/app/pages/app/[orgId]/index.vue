@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CongressPublic } from '@assembla-med/shared'
+import { COMMON_TIMEZONES } from '@assembla-med/shared'
 
 const route = useRoute()
 const orgId = route.params.orgId as string
@@ -22,6 +23,7 @@ const form = reactive({
   companyContactEmail: '',
   websiteUrl: '',
   location: '',
+  timezone: 'America/New_York',
   startDate: '',
   endDate: '',
   status: 'planning' as CongressPublic['status']
@@ -42,6 +44,7 @@ async function onCreate() {
         companyContactEmail: form.companyContactEmail || undefined,
         websiteUrl: form.websiteUrl || undefined,
         location: form.location || undefined,
+        timezone: form.timezone,
         startDate: form.startDate || undefined,
         endDate: form.endDate || undefined,
         status: form.status
@@ -53,6 +56,7 @@ async function onCreate() {
     form.companyContactEmail = ''
     form.websiteUrl = ''
     form.location = ''
+    form.timezone = 'America/New_York'
     form.startDate = ''
     form.endDate = ''
     form.status = 'planning'
@@ -123,6 +127,20 @@ async function onCreate() {
             class="w-full"
           />
         </UFormField>
+        <UFormField label="Venue timezone">
+          <select
+            v-model="form.timezone"
+            class="w-full rounded-md border border-default bg-default px-3 py-2 text-sm"
+          >
+            <option
+              v-for="tz in COMMON_TIMEZONES"
+              :key="tz.value"
+              :value="tz.value"
+            >
+              {{ tz.label }}
+            </option>
+          </select>
+        </UFormField>
         <UFormField label="Start date">
           <UInput
             v-model="form.startDate"
@@ -187,6 +205,7 @@ async function onCreate() {
             </p>
             <p class="mt-1 text-xs text-muted">
               {{ congress.location || 'No location' }}
+              · {{ congress.timezone || 'UTC' }}
               · {{ congress.status }}
               <span v-if="congress.startDate"> · {{ congress.startDate }}</span>
             </p>

@@ -112,9 +112,9 @@ Each phase has a **goal**, **ship list**, and **exit criteria**. Do not start th
 
 **Exit criteria**
 
-- [ ] Same appointment shows the same wall time for planners and booth staff in congress TZ
-- [ ] Changing browser TZ does not silently shift the booked slot on save
-- [ ] API still stores/returns ISO UTC
+- [x] Same appointment shows the same wall time for planners and booth staff in congress TZ
+- [x] Changing browser TZ does not silently shift the booked slot on save
+- [x] API still stores/returns ISO UTC
 
 ---
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AppointmentPublic, CheckInPublic } from '@assembla-med/shared'
+import { formatInTimeZone, resolveTimeZone } from '@assembla-med/shared'
 
 const route = useRoute()
 const orgId = route.params.orgId as string
@@ -180,6 +181,10 @@ function integrationLabel(status: CheckInPublic['integrationStatus'], destinatio
 }
 
 const apiBase = computed(() => config.public.apiBase as string)
+
+function foundTz() {
+  return resolveTimeZone(found.value?.congress?.timezone)
+}
 </script>
 
 <template>
@@ -230,9 +235,10 @@ const apiBase = computed(() => config.public.apiBase as string)
         </p>
         <p class="text-sm text-muted mt-1">
           Scheduled
-          {{ new Date(found.startTime).toLocaleString() }}
+          {{ formatInTimeZone(found.startTime, foundTz()) }}
           –
-          {{ new Date(found.endTime).toLocaleString() }}
+          {{ formatInTimeZone(found.endTime, foundTz()) }}
+          <span> · {{ foundTz() }}</span>
           <span v-if="found.room"> · {{ found.room.title }}</span>
           <span v-else-if="found.location"> · {{ found.location }}</span>
         </p>

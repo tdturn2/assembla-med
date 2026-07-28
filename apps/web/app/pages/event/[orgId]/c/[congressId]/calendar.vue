@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AppointmentPublic, CongressPublic } from '@assembla-med/shared'
+import { formatInTimeZone, resolveTimeZone } from '@assembla-med/shared'
 
 const route = useRoute()
 const orgId = route.params.orgId as string
@@ -93,9 +94,10 @@ const visible = computed(() => {
           {{ appt.title }}
         </p>
         <p class="text-xs text-muted">
-          {{ new Date(appt.startTime).toLocaleString() }}
+          {{ formatInTimeZone(appt.startTime, resolveTimeZone(data?.congress?.timezone)) }}
           –
-          {{ new Date(appt.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) }}
+          {{ formatInTimeZone(appt.endTime, resolveTimeZone(data?.congress?.timezone)) }}
+          <span> · {{ resolveTimeZone(data?.congress?.timezone) }}</span>
         </p>
         <p class="text-xs text-muted">
           <span v-if="appt.location">{{ appt.location }} · </span>

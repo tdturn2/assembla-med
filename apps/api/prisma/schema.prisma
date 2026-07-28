@@ -192,6 +192,8 @@ model Congress {
   companyContactName  String?        @map("company_contact_name")
   companyContactEmail String?        @map("company_contact_email")
   websiteUrl          String?        @map("website_url")
+  /// IANA timezone for venue wall clock (e.g. Europe/Amsterdam)
+  timezone            String         @default("UTC")
   startDate           DateTime?      @map("start_date") @db.Date
   endDate             DateTime?      @map("end_date") @db.Date
   location            String?

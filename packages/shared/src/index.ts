@@ -1,5 +1,7 @@
 /** Shared contracts between Console (Nuxt) and API (Nest). */
 
+export * from './timezone.js'
+
 export type SubscriptionTier = 'core' | 'core_plus'
 
 export type MembershipRole = 'org_admin' | 'rep' | 'viewer'
@@ -82,6 +84,8 @@ export interface CongressPublic {
   companyContactName: string | null
   companyContactEmail: string | null
   websiteUrl: string | null
+  /** IANA timezone for venue wall clock */
+  timezone: string
   startDate: string | null
   endDate: string | null
   location: string | null

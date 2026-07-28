@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AppointmentPublic, CheckInPublic } from '@assembla-med/shared'
+import { formatInTimeZone, resolveTimeZone } from '@assembla-med/shared'
 
 const route = useRoute()
 const orgId = route.params.orgId as string
@@ -182,9 +183,10 @@ async function submitCheckIn() {
         </p>
         <p class="text-xs text-muted mt-1">
           Scheduled
-          {{ new Date(found.startTime).toLocaleString() }}
+          {{ formatInTimeZone(found.startTime, resolveTimeZone(found.congress?.timezone)) }}
           –
-          {{ new Date(found.endTime).toLocaleString() }}
+          {{ formatInTimeZone(found.endTime, resolveTimeZone(found.congress?.timezone)) }}
+          <span> · {{ resolveTimeZone(found.congress?.timezone) }}</span>
           <span v-if="found.room"> · {{ found.room.title }}</span>
           <span v-else-if="found.location"> · {{ found.location }}</span>
         </p>

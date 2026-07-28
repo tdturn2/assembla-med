@@ -9,6 +9,12 @@ import type {
   KolPublic,
   RoomPublic
 } from '@assembla-med/shared'
+import {
+  formatInTimeZone,
+  resolveTimeZone,
+  utcToWallInput,
+  wallTimeToUtcIso
+} from '@assembla-med/shared'
 
 const route = useRoute()
 const orgId = route.params.orgId as string
@@ -85,11 +91,19 @@ const statusOptions: { label: string, value: AppointmentStatus }[] = [
   { label: 'Cancelled', value: 'cancelled' }
 ]
 
-function toLocalInput(iso: string) {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+function congressTzFor(appt: AppointmentPublic) {
+  return resolveTimeZone(appt.congress?.timezone)
 }
+
+function formatApptRange(appt: AppointmentPublic) {
+  const tz = congressTzFor(appt)
+  return `${formatInTimeZone(appt.startTime, tz)} – ${formatInTimeZone(appt.endTime, tz)}`
+}
+
+const selectedCongress = computed(() =>
+  (pageData.value?.congresses || []).find(c => c.id === form.congressId) || null
+)
+const bookingTz = computed(() => resolveTimeZone(selectedCongress.value?.timezone))
 
 const editingAppt = computed(() =>
   (data.value.appointments || []).find(a => a.id === editingId.value) || null
@@ -127,7 +141,7 @@ const { data: roomAvail, pending: roomAvailPending } = await useAsyncData(
     }
     try {
       return await api<{ rooms: RoomPublic[] }>(
-        `/organizations/${orgId}/congresses/${form.congressId}/rooms/availability?startTime=${encodeURIComponent(new Date(form.startTime).toISOString())}&endTime=${encodeURIComponent(new Date(form.endTime).toISOString())}`
+        `/organizations/${orgId}/congresses/${form.congressId}/rooms/availability?startTime=${encodeURIComponent(wallTimeToUtcIso(form.startTime, bookingTz.value))}&endTime=${encodeURIComponent(wallTimeToUtcIso(form.endTime, bookingTz.value))}`
       )
     } catch {
       return await api<{ rooms: RoomPublic[] }>(
@@ -148,7 +162,7 @@ const { data: personAvail } = await useAsyncData(
     }
     try {
       return await api<AvailabilitySlotPublic>(
-        `/organizations/${orgId}/availability/person?kolId=${encodeURIComponent(form.kolId)}&startTime=${encodeURIComponent(new Date(form.startTime).toISOString())}&endTime=${encodeURIComponent(new Date(form.endTime).toISOString())}`
+        `/organizations/${orgId}/availability/person?kolId=${encodeURIComponent(form.kolId)}&startTime=${encodeURIComponent(wallTimeToUtcIso(form.startTime, bookingTz.value))}&endTime=${encodeURIComponent(wallTimeToUtcIso(form.endTime, bookingTz.value))}`
       )
     } catch {
       return null
@@ -219,8 +233,8 @@ async function onCreate() {
         roomId: form.roomId || undefined,
         title: form.title,
         location: form.location || undefined,
-        startTime: new Date(form.startTime).toISOString(),
-        endTime: new Date(form.endTime).toISOString(),
+        startTime: wallTimeToUtcIso(form.startTime, bookingTz.value),
+        endTime: wallTimeToUtcIso(form.endTime, bookingTz.value),
         engagementType: form.engagementType,
         isContracted: form.isContracted,
         contractNotes: form.contractNotes || undefined,
@@ -308,7 +322,7 @@ const { data: editRoomAvail, pending: editRoomPending } = await useAsyncData(
     }
     try {
       return await api<{ rooms: RoomPublic[] }>(
-        `/organizations/${orgId}/congresses/${appt.congressId}/rooms/availability?startTime=${encodeURIComponent(new Date(editForm.startTime).toISOString())}&endTime=${encodeURIComponent(new Date(editForm.endTime).toISOString())}&excludeAppointmentId=${encodeURIComponent(appt.id)}`
+        `/organizations/${orgId}/congresses/${appt.congressId}/rooms/availability?startTime=${encodeURIComponent(wallTimeToUtcIso(editForm.startTime, congressTzFor(appt)))}&endTime=${encodeURIComponent(wallTimeToUtcIso(editForm.endTime, congressTzFor(appt)))}&excludeAppointmentId=${encodeURIComponent(appt.id)}`
       )
     } catch {
       return await api<{ rooms: RoomPublic[] }>(
@@ -337,8 +351,8 @@ const editRoomItems = computed(() => {
 
 function startEdit(appt: AppointmentPublic) {
   editingId.value = appt.id
-  editForm.startTime = toLocalInput(appt.startTime)
-  editForm.endTime = toLocalInput(appt.endTime)
+  editForm.startTime = utcToWallInput(appt.startTime, congressTzFor(appt))
+  editForm.endTime = utcToWallInput(appt.endTime, congressTzFor(appt))
   editForm.roomId = appt.roomId || ''
   editForm.status = appt.status
   error.value = ''
@@ -349,15 +363,16 @@ function cancelEdit() {
 }
 
 async function saveEdit() {
-  if (!editingId.value) return
+  if (!editingId.value || !editingAppt.value) return
   editBusy.value = true
   error.value = ''
   try {
+    const tz = congressTzFor(editingAppt.value)
     await api(`/organizations/${orgId}/appointments/${editingId.value}`, {
       method: 'PATCH',
       body: {
-        startTime: new Date(editForm.startTime).toISOString(),
-        endTime: new Date(editForm.endTime).toISOString(),
+        startTime: wallTimeToUtcIso(editForm.startTime, tz),
+        endTime: wallTimeToUtcIso(editForm.endTime, tz),
         roomId: editForm.roomId || null,
         status: editForm.status
       }
@@ -462,14 +477,14 @@ async function saveEdit() {
             class="w-full"
           />
         </UFormField>
-        <UFormField label="Start">
+        <UFormField :label="`Start (${bookingTz})`">
           <UInput
             v-model="form.startTime"
             type="datetime-local"
             class="w-full"
           />
         </UFormField>
-        <UFormField label="End">
+        <UFormField :label="`End (${bookingTz})`">
           <UInput
             v-model="form.endTime"
             type="datetime-local"
@@ -640,9 +655,8 @@ async function saveEdit() {
               <span v-if="appt.isContracted"> · contracted</span>
             </p>
             <p class="text-xs text-muted mt-1">
-              {{ new Date(appt.startTime).toLocaleString() }}
-              –
-              {{ new Date(appt.endTime).toLocaleString() }}
+              {{ formatApptRange(appt) }}
+              <span class="text-muted"> · {{ congressTzFor(appt) }}</span>
             </p>
             <p
               v-if="appt.contractNotes"
@@ -678,14 +692,14 @@ async function saveEdit() {
             Reschedule
           </p>
           <div class="grid gap-3 sm:grid-cols-2">
-            <UFormField label="Start">
+            <UFormField :label="`Start (${editingAppt ? congressTzFor(editingAppt) : 'UTC'})`">
               <UInput
                 v-model="editForm.startTime"
                 type="datetime-local"
                 class="w-full"
               />
             </UFormField>
-            <UFormField label="End">
+            <UFormField :label="`End (${editingAppt ? congressTzFor(editingAppt) : 'UTC'})`">
               <UInput
                 v-model="editForm.endTime"
                 type="datetime-local"

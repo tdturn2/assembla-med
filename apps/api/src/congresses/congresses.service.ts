@@ -1,6 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CongressStatus, Prisma } from '@prisma/client';
-import type { DisclosureItemPublic } from '@assembla-med/shared';
+import {
+  isValidTimeZone,
+  resolveTimeZone,
+  type DisclosureItemPublic,
+} from '@assembla-med/shared';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -40,6 +44,7 @@ export class CongressesService {
       companyContactName?: string;
       companyContactEmail?: string;
       websiteUrl?: string;
+      timezone?: string;
       startDate?: string;
       endDate?: string;
       location?: string;
@@ -47,6 +52,7 @@ export class CongressesService {
     },
     ipAddress?: string,
   ) {
+    const timezone = this.assertTimeZone(data.timezone);
     return this.prisma.$transaction(async (tx) => {
       const congress = await tx.congress.create({
         data: {
@@ -56,6 +62,7 @@ export class CongressesService {
           companyContactName: data.companyContactName?.trim() || null,
           companyContactEmail: data.companyContactEmail?.trim() || null,
           websiteUrl: data.websiteUrl?.trim() || null,
+          timezone,
           startDate: data.startDate ? new Date(data.startDate) : null,
           endDate: data.endDate ? new Date(data.endDate) : null,
           location: data.location?.trim() || null,
@@ -104,6 +111,7 @@ export class CongressesService {
       companyContactName?: string | null;
       companyContactEmail?: string | null;
       websiteUrl?: string | null;
+      timezone?: string;
       startDate?: string | null;
       endDate?: string | null;
       location?: string | null;
@@ -126,6 +134,9 @@ export class CongressesService {
     }
     if (data.websiteUrl !== undefined) {
       patch.websiteUrl = data.websiteUrl?.trim() || null;
+    }
+    if (data.timezone !== undefined) {
+      patch.timezone = this.assertTimeZone(data.timezone);
     }
     if (data.location !== undefined) {
       patch.location = data.location?.trim() || null;
@@ -313,5 +324,15 @@ export class CongressesService {
     });
 
     return guide;
+  }
+
+  private assertTimeZone(timeZone?: string | null) {
+    const resolved = resolveTimeZone(timeZone);
+    if (timeZone?.trim() && !isValidTimeZone(timeZone.trim())) {
+      throw new BadRequestException(
+        `Invalid IANA timezone: ${timeZone.trim()}`,
+      );
+    }
+    return resolved;
   }
 }

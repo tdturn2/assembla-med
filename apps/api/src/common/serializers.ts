@@ -133,6 +133,7 @@ export function toCongressPublic(congress: Congress): CongressPublic {
     companyContactName: congress.companyContactName,
     companyContactEmail: congress.companyContactEmail,
     websiteUrl: congress.websiteUrl,
+    timezone: congress.timezone || 'UTC',
     startDate: congress.startDate?.toISOString().slice(0, 10) ?? null,
     endDate: congress.endDate?.toISOString().slice(0, 10) ?? null,
     location: congress.location,

@@ -52,6 +52,11 @@ export class CreateCongressDto {
   websiteUrl?: string;
 
   @IsOptional()
+  @IsString()
+  @MinLength(1)
+  timezone?: string;
+
+  @IsOptional()
   @IsDateString()
   startDate?: string;
 
@@ -91,6 +96,11 @@ export class UpdateCongressDto {
   @ValidateIf((_, value) => value !== null && value !== '')
   @IsUrl({ require_tld: false })
   websiteUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  timezone?: string;
 
   @IsOptional()
   @IsDateString()

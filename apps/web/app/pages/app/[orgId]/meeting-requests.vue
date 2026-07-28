@@ -9,6 +9,11 @@ import type {
   MeetingRequestStatus,
   RoomPublic
 } from '@assembla-med/shared'
+import {
+  resolveTimeZone,
+  utcToWallInput,
+  wallTimeToUtcIso
+} from '@assembla-med/shared'
 
 const route = useRoute()
 const orgId = route.params.orgId as string
@@ -121,9 +126,10 @@ const { data: scheduleRooms, pending: roomsPending } = await useAsyncData(
     if (!req || !scheduleForm.startTime || !scheduleForm.endTime) {
       return { rooms: [] as RoomPublic[] }
     }
+    const tz = resolveTimeZone(req.congress?.timezone)
     try {
       return await api<{ rooms: RoomPublic[] }>(
-        `/organizations/${orgId}/congresses/${req.congressId}/rooms/availability?startTime=${encodeURIComponent(new Date(scheduleForm.startTime).toISOString())}&endTime=${encodeURIComponent(new Date(scheduleForm.endTime).toISOString())}`
+        `/organizations/${orgId}/congresses/${req.congressId}/rooms/availability?startTime=${encodeURIComponent(wallTimeToUtcIso(scheduleForm.startTime, tz))}&endTime=${encodeURIComponent(wallTimeToUtcIso(scheduleForm.endTime, tz))}`
       )
     } catch {
       return await api<{ rooms: RoomPublic[] }>(
@@ -260,15 +266,13 @@ function openSchedule(req: MeetingRequestPublic) {
   schedulingId.value = req.id
   scheduleForm.title = req.topic || ''
   scheduleForm.roomId = ''
+  const tz = resolveTimeZone(req.congress?.timezone)
   const start = new Date()
   start.setMinutes(0, 0, 0)
   start.setHours(start.getHours() + 1)
   const end = new Date(start.getTime() + req.requestedDurationMinutes * 60_000)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const toLocal = (d: Date) =>
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-  scheduleForm.startTime = toLocal(start)
-  scheduleForm.endTime = toLocal(end)
+  scheduleForm.startTime = utcToWallInput(start.toISOString(), tz)
+  scheduleForm.endTime = utcToWallInput(end.toISOString(), tz)
   error.value = ''
 }
 
@@ -278,17 +282,20 @@ function cancelSchedule() {
 
 async function saveSchedule() {
   if (!schedulingId.value) return
+  const req = (pageData.value?.meetingRequests || []).find(r => r.id === schedulingId.value)
+  if (!req) return
   scheduleBusy.value = true
   error.value = ''
   try {
+    const tz = resolveTimeZone(req.congress?.timezone)
     const result = await api<{
       meetingRequest: MeetingRequestPublic
       appointment: AppointmentPublic
     }>(`/organizations/${orgId}/meeting-requests/${schedulingId.value}/schedule`, {
       method: 'POST',
       body: {
-        startTime: new Date(scheduleForm.startTime).toISOString(),
-        endTime: new Date(scheduleForm.endTime).toISOString(),
+        startTime: wallTimeToUtcIso(scheduleForm.startTime, tz),
+        endTime: wallTimeToUtcIso(scheduleForm.endTime, tz),
         roomId: scheduleForm.roomId || undefined,
         title: scheduleForm.title || undefined
       }
@@ -710,14 +717,14 @@ async function setStatus(requestId: string, status: MeetingRequestStatus) {
                 class="w-full"
               />
             </UFormField>
-            <UFormField label="Start">
+            <UFormField :label="`Start (${schedulingId ? resolveTimeZone((pageData?.meetingRequests || []).find(r => r.id === schedulingId)?.congress?.timezone) : 'UTC'})`">
               <UInput
                 v-model="scheduleForm.startTime"
                 type="datetime-local"
                 class="w-full"
               />
             </UFormField>
-            <UFormField label="End">
+            <UFormField :label="`End (${schedulingId ? resolveTimeZone((pageData?.meetingRequests || []).find(r => r.id === schedulingId)?.congress?.timezone) : 'UTC'})`">
               <UInput
                 v-model="scheduleForm.endTime"
                 type="datetime-local"

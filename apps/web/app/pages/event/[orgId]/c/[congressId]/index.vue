@@ -4,6 +4,7 @@ import type {
   CongressGuidePublic,
   CongressPublic
 } from '@assembla-med/shared'
+import { formatInTimeZone, resolveTimeZone } from '@assembla-med/shared'
 
 const route = useRoute()
 const orgId = route.params.orgId as string
@@ -104,7 +105,7 @@ const links = [
               {{ appt.title }}
             </p>
             <p class="text-xs text-muted">
-              {{ new Date(appt.startTime).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) }}
+              {{ formatInTimeZone(appt.startTime, resolveTimeZone(data?.congress?.timezone), { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) }}
               <span v-if="appt.kol"> · {{ appt.kol.name }}</span>
               <span v-if="appt.isContracted"> · contracted</span>
             </p>

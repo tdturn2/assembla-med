@@ -31,7 +31,7 @@ See **[docs/calendaring-roadmap.md](./docs/calendaring-roadmap.md)** and locked 
 
 **Bet:** Assembla = source of truth; **rooms-first** resource calendar; `MeetingRequest` → appointment; Outlook invite outbound last.
 
-**Build order:** T0 ✓ → T0.5 ✓ (`MeetingRequest`) → T1 (timezone) → T1.5 (room hours) → T2 (real slots) → T4 rooms UI → T3 check-in window.
+**Build order:** T0 ✓ → T0.5 ✓ → T1 ✓ (timezone) → T1.5 (room hours) → T2 (real slots) → T4 rooms UI → T3 check-in window.
 
 ---
 
