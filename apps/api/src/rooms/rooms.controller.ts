@@ -42,12 +42,14 @@ export class RoomsController {
     @Param('congressId') congressId: string,
     @Query('startTime') startTime: string,
     @Query('endTime') endTime: string,
+    @Query('excludeAppointmentId') excludeAppointmentId?: string,
   ) {
     const rooms = await this.rooms.availability(
       orgId,
       congressId,
       startTime,
       endTime,
+      excludeAppointmentId,
     );
     return { rooms: rooms.map(toRoomPublic) };
   }

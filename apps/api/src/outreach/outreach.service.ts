@@ -5,8 +5,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  AttendeeKind,
-  AttendeeRsvpStatus,
   CampaignStatus,
   EngagementType,
   InvitationStatus,
@@ -389,42 +387,8 @@ export class OutreachService {
         : InvitationStatus.declined;
 
     let appointmentId = invitation.appointmentId;
-    if (response === 'accepted' && invitation.campaign.congressId) {
-      const start = new Date();
-      start.setMinutes(0, 0, 0);
-      start.setHours(start.getHours() + 24);
-      const end = new Date(start.getTime() + 30 * 60 * 1000);
-      const engagementType =
-        invitation.engagementType ?? invitation.campaign.engagementType;
-      const isContracted =
-        invitation.isContracted || invitation.campaign.isContracted;
-      const appointment = await this.prisma.appointment.create({
-        data: {
-          organizationId: invitation.organizationId,
-          congressId: invitation.campaign.congressId,
-          kolId: invitation.kolId,
-          title: `Meeting with ${invitation.toName}`,
-          startTime: start,
-          endTime: end,
-          engagementType,
-          isContracted,
-          notes: message?.trim() || 'Created from invitation acceptance',
-          checkInCode: randomBytes(4).toString('hex').toUpperCase(),
-          attendees: {
-            create: {
-              organizationId: invitation.organizationId,
-              kind: AttendeeKind.kol,
-              kolId: invitation.kolId,
-              name: invitation.toName,
-              email: invitation.toEmail,
-              rsvpStatus: AttendeeRsvpStatus.accepted,
-              isPrimary: true,
-            },
-          },
-        },
-      });
-      appointmentId = appointment.id;
-    }
+    // Accept marks invitation as needing scheduling — do not invent a placeholder slot.
+    // Planners confirm real time/room via Console (calendaring T2 pending placement).
 
     const updated = await this.prisma.invitation.update({
       where: { id: invitation.id },
@@ -446,7 +410,14 @@ export class OutreachService {
       organizationId: invitation.organizationId,
       entityType: 'invitation',
       entityId: invitation.id,
-      metadata: { response, appointmentId },
+      metadata: {
+        response,
+        appointmentId,
+        needsScheduling:
+          response === 'accepted' &&
+          Boolean(invitation.campaign.congressId) &&
+          !appointmentId,
+      },
     });
 
     return updated;

@@ -180,6 +180,14 @@ async function submitCheckIn() {
           {{ found.engagementType.replace('_', ' ') }}
           <span v-if="found.isContracted"> · contracted</span>
         </p>
+        <p class="text-xs text-muted mt-1">
+          Scheduled
+          {{ new Date(found.startTime).toLocaleString() }}
+          –
+          {{ new Date(found.endTime).toLocaleString() }}
+          <span v-if="found.room"> · {{ found.room.title }}</span>
+          <span v-else-if="found.location"> · {{ found.location }}</span>
+        </p>
       </div>
 
       <UFormField label="Attendee name">

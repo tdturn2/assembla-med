@@ -25,6 +25,14 @@ Raw notes from first-round review are below. Implementation order:
 ## Defer
 - Local AI conversation tracking, live CVENT API, calendar sync, SSO/MFA, congress scrape, push notifications
 
+## Time / calendaring (next)
+
+See **[docs/calendaring-roadmap.md](./docs/calendaring-roadmap.md)** and locked decisions in **[congress-calendar.md](./congress-calendar.md)**.
+
+**Bet:** Assembla = source of truth; **rooms-first** resource calendar; `MeetingRequest` → appointment; Outlook invite outbound last.
+
+**Build order:** T0 (trust) → T0.5 (requests) → T1 (timezone) → T1.5 (room hours) → T2 (real slots) → T4 rooms UI → T3 check-in window.
+
 ---
 
 ## Raw feedback

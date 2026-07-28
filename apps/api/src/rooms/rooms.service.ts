@@ -159,6 +159,7 @@ export class RoomsService {
     congressId: string,
     startTimeIso: string,
     endTimeIso: string,
+    excludeAppointmentId?: string,
   ) {
     await this.assertCongress(organizationId, congressId);
     const startTime = new Date(startTimeIso);
@@ -175,6 +176,9 @@ export class RoomsService {
           congressId,
           status: { not: AppointmentStatus.cancelled },
           roomId: { not: null },
+          id: excludeAppointmentId
+            ? { not: excludeAppointmentId }
+            : undefined,
         },
         select: {
           id: true,

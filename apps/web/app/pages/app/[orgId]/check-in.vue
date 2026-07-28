@@ -228,6 +228,14 @@ const apiBase = computed(() => config.public.apiBase as string)
           {{ found.congress?.name }}
           <span v-if="found.kol"> · {{ found.kol.name }}</span>
         </p>
+        <p class="text-sm text-muted mt-1">
+          Scheduled
+          {{ new Date(found.startTime).toLocaleString() }}
+          –
+          {{ new Date(found.endTime).toLocaleString() }}
+          <span v-if="found.room"> · {{ found.room.title }}</span>
+          <span v-else-if="found.location"> · {{ found.location }}</span>
+        </p>
       </div>
 
       <div class="grid gap-3 sm:grid-cols-2">

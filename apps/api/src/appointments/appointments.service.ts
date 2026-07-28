@@ -85,9 +85,14 @@ export class AppointmentsService {
       roomTitle = room.title;
     }
 
+    const attendeeKolIds = [
+      primaryKolId,
+      ...(data.attendees || []).map((a) => a.kolId),
+    ];
+
     await this.assertNoConflicts({
       organizationId,
-      kolId: primaryKolId,
+      kolIds: attendeeKolIds,
       roomId,
       createdById: userId,
       startTime,
@@ -263,10 +268,14 @@ export class AppointmentsService {
 
     const nextStatus = data.status ?? existing.status;
     if (nextStatus !== AppointmentStatus.cancelled) {
+      const nextKolId =
+        data.kolId === undefined ? existing.kolId : data.kolId;
+      const attendeeKolIds = existing.attendees
+        ?.map((a) => a.kolId)
+        .filter(Boolean) as string[] | undefined;
       await this.assertNoConflicts({
         organizationId,
-        kolId:
-          data.kolId === undefined ? (existing.kolId ?? undefined) : data.kolId,
+        kolIds: [nextKolId, ...(attendeeKolIds || [])],
         roomId: nextRoomId,
         createdById: existing.createdById ?? userId,
         startTime,
@@ -343,7 +352,20 @@ export class AppointmentsService {
     input: AttendeeInputDto,
     ipAddress?: string,
   ) {
-    await this.get(organizationId, appointmentId);
+    const appointment = await this.get(organizationId, appointmentId);
+    if (
+      input.kind === AttendeeKind.kol &&
+      input.kolId &&
+      appointment.status !== AppointmentStatus.cancelled
+    ) {
+      await this.assertNoConflicts({
+        organizationId,
+        kolIds: [input.kolId],
+        startTime: appointment.startTime,
+        endTime: appointment.endTime,
+        excludeAppointmentId: appointmentId,
+      });
+    }
     const attendee = await this.prisma.$transaction(async (tx) => {
       if (input.isPrimary) {
         await tx.appointmentAttendee.updateMany({
@@ -494,18 +516,23 @@ export class AppointmentsService {
 
   private async assertNoConflicts(input: {
     organizationId: string;
-    kolId?: string | null;
+    kolIds?: Array<string | null | undefined>;
     roomId?: string | null;
     createdById?: string | null;
     startTime: Date;
     endTime: Date;
     excludeAppointmentId?: string;
   }) {
+    const kolIds = [
+      ...new Set(
+        (input.kolIds || []).filter((id): id is string => Boolean(id)),
+      ),
+    ];
     const orFilters: Prisma.AppointmentWhereInput[] = [];
-    if (input.kolId) {
-      orFilters.push({ kolId: input.kolId });
+    for (const kolId of kolIds) {
+      orFilters.push({ kolId });
       orFilters.push({
-        attendees: { some: { kolId: input.kolId } },
+        attendees: { some: { kolId } },
       });
     }
     if (input.createdById) {

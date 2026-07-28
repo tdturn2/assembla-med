@@ -121,7 +121,7 @@ describe('Phase 2 outreach (e2e)', () => {
     const invitation = (respondRes.body as { invitation: InvitationPublic })
       .invitation;
     expect(invitation.status).toBe('responded');
-    expect(invitation.appointmentId).toBeTruthy();
+    expect(invitation.appointmentId).toBeFalsy();
 
     const audits = await prisma.auditEvent.count({
       where: {

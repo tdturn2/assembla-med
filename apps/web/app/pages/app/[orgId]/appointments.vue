@@ -2,6 +2,7 @@
 import type {
   AppointmentAttendeePublic,
   AppointmentPublic,
+  AppointmentStatus,
   AvailabilitySlotPublic,
   CongressPublic,
   EngagementType,
@@ -67,6 +68,32 @@ const error = ref('')
 const creating = ref(false)
 const attendeeBusy = ref<string | null>(null)
 const addForms = reactive<Record<string, { kolId: string, externalName: string }>>({})
+const editingId = ref<string | null>(null)
+const editBusy = ref(false)
+const editForm = reactive({
+  startTime: '',
+  endTime: '',
+  roomId: '',
+  status: 'confirmed' as AppointmentStatus
+})
+
+const statusOptions: { label: string, value: AppointmentStatus }[] = [
+  { label: 'Pending', value: 'pending' },
+  { label: 'Confirmed', value: 'confirmed' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'No show', value: 'no_show' },
+  { label: 'Cancelled', value: 'cancelled' }
+]
+
+function toLocalInput(iso: string) {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const editingAppt = computed(() =>
+  (data.value.appointments || []).find(a => a.id === editingId.value) || null
+)
 
 watch(() => data.value.appointments, (list) => {
   for (const appt of list) {
@@ -135,7 +162,7 @@ const { data: personAvail } = await useAsyncData(
 const roomItems = computed(() => {
   const rooms = roomAvail.value?.rooms || []
   return [
-    { label: 'No room', value: '' },
+    { label: 'No room', value: '', disabled: false },
     ...rooms.map((r) => ({
       label: r.available === false
         ? `${r.title} (busy)`
@@ -269,6 +296,82 @@ async function removeAttendee(appointmentId: string, attendeeId: string) {
     error.value = (e as { data?: { message?: string } })?.data?.message || 'Unable to remove attendee'
   } finally {
     attendeeBusy.value = null
+  }
+}
+
+const { data: editRoomAvail, pending: editRoomPending } = await useAsyncData(
+  `edit-room-avail-${orgId}`,
+  async () => {
+    const appt = editingAppt.value
+    if (!appt || !editForm.startTime || !editForm.endTime) {
+      return { rooms: [] as RoomPublic[] }
+    }
+    try {
+      return await api<{ rooms: RoomPublic[] }>(
+        `/organizations/${orgId}/congresses/${appt.congressId}/rooms/availability?startTime=${encodeURIComponent(new Date(editForm.startTime).toISOString())}&endTime=${encodeURIComponent(new Date(editForm.endTime).toISOString())}&excludeAppointmentId=${encodeURIComponent(appt.id)}`
+      )
+    } catch {
+      return await api<{ rooms: RoomPublic[] }>(
+        `/organizations/${orgId}/congresses/${appt.congressId}/rooms`
+      )
+    }
+  },
+  {
+    watch: [editingId, () => editForm.startTime, () => editForm.endTime]
+  }
+)
+
+const editRoomItems = computed(() => {
+  const rooms = editRoomAvail.value?.rooms || []
+  return [
+    { label: 'No room', value: '', disabled: false },
+    ...rooms.map((r) => ({
+      label: r.available === false
+        ? `${r.title} (busy)`
+        : `${r.title}${r.sitting != null ? ` · sit ${r.sitting}` : ''}${r.hasAv ? ' · AV' : ''}`,
+      value: r.id,
+      disabled: r.available === false
+    }))
+  ]
+})
+
+function startEdit(appt: AppointmentPublic) {
+  editingId.value = appt.id
+  editForm.startTime = toLocalInput(appt.startTime)
+  editForm.endTime = toLocalInput(appt.endTime)
+  editForm.roomId = appt.roomId || ''
+  editForm.status = appt.status
+  error.value = ''
+}
+
+function cancelEdit() {
+  editingId.value = null
+}
+
+async function saveEdit() {
+  if (!editingId.value) return
+  editBusy.value = true
+  error.value = ''
+  try {
+    await api(`/organizations/${orgId}/appointments/${editingId.value}`, {
+      method: 'PATCH',
+      body: {
+        startTime: new Date(editForm.startTime).toISOString(),
+        endTime: new Date(editForm.endTime).toISOString(),
+        roomId: editForm.roomId || null,
+        status: editForm.status
+      }
+    })
+    editingId.value = null
+    await refresh()
+    toast.add({ title: 'Appointment updated', color: 'success' })
+  } catch (e: unknown) {
+    const payload = e as { data?: { message?: string | string[] } }
+    error.value = Array.isArray(payload.data?.message)
+      ? payload.data.message.join(', ')
+      : payload.data?.message || 'Unable to update appointment'
+  } finally {
+    editBusy.value = false
   }
 }
 </script>
@@ -540,12 +643,102 @@ async function removeAttendee(appointmentId: string, attendeeId: string) {
               Contract: {{ appt.contractNotes }}
             </p>
           </div>
-          <UBadge
-            color="neutral"
-            variant="subtle"
-          >
-            Code {{ appt.checkInCode }}
-          </UBadge>
+          <div class="flex flex-wrap items-center gap-2">
+            <UBadge
+              color="neutral"
+              variant="subtle"
+            >
+              Code {{ appt.checkInCode }}
+            </UBadge>
+            <UButton
+              v-if="editingId !== appt.id"
+              size="xs"
+              color="neutral"
+              variant="soft"
+              @click="startEdit(appt)"
+            >
+              Reschedule
+            </UButton>
+          </div>
+        </div>
+
+        <div
+          v-if="editingId === appt.id"
+          class="rounded-md border border-default bg-elevated/40 p-3 space-y-3"
+        >
+          <p class="text-xs font-medium text-highlighted uppercase tracking-wide">
+            Reschedule
+          </p>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <UFormField label="Start">
+              <UInput
+                v-model="editForm.startTime"
+                type="datetime-local"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="End">
+              <UInput
+                v-model="editForm.endTime"
+                type="datetime-local"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Room">
+              <select
+                v-model="editForm.roomId"
+                class="w-full rounded-md border border-default bg-default px-3 py-2 text-sm"
+              >
+                <option
+                  v-for="item in editRoomItems"
+                  :key="item.value || 'none'"
+                  :value="item.value"
+                  :disabled="item.disabled"
+                >
+                  {{ item.label }}
+                </option>
+              </select>
+              <p
+                v-if="editRoomPending"
+                class="mt-1 text-xs text-muted"
+              >
+                Checking room availability…
+              </p>
+            </UFormField>
+            <UFormField label="Status">
+              <select
+                v-model="editForm.status"
+                class="w-full rounded-md border border-default bg-default px-3 py-2 text-sm"
+              >
+                <option
+                  v-for="item in statusOptions"
+                  :key="item.value"
+                  :value="item.value"
+                >
+                  {{ item.label }}
+                </option>
+              </select>
+            </UFormField>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              size="sm"
+              :loading="editBusy"
+              :disabled="!editForm.startTime || !editForm.endTime"
+              @click="saveEdit"
+            >
+              Save changes
+            </UButton>
+            <UButton
+              size="sm"
+              color="neutral"
+              variant="ghost"
+              :disabled="editBusy"
+              @click="cancelEdit"
+            >
+              Cancel
+            </UButton>
+          </div>
         </div>
 
         <div class="rounded-md border border-default bg-elevated/40 p-3 space-y-2">
@@ -579,10 +772,12 @@ async function removeAttendee(appointmentId: string, attendeeId: string) {
           >
             No attendees listed yet.
           </p>
-          <div class="grid gap-2 sm:grid-cols-[1fr_1fr_auto] pt-1">
+          <div
+            v-if="addForms[appt.id]"
+            class="grid gap-2 sm:grid-cols-[1fr_1fr_auto] pt-1"
+          >
             <select
-              v-if="addForms[appt.id]"
-              v-model="addForms[appt.id].kolId"
+              v-model="addForms[appt.id]!.kolId"
               class="w-full rounded-md border border-default bg-default px-2 py-1.5 text-sm"
             >
               <option value="">
@@ -597,8 +792,7 @@ async function removeAttendee(appointmentId: string, attendeeId: string) {
               </option>
             </select>
             <UInput
-              v-if="addForms[appt.id]"
-              v-model="addForms[appt.id].externalName"
+              v-model="addForms[appt.id]!.externalName"
               placeholder="Or external name"
               size="sm"
               class="w-full"
